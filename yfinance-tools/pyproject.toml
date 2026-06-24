@@ -1,0 +1,67 @@
+[project]
+name = "yfinance-tools"
+version = "0.1.0"
+description = "Tools above yfinance"
+readme = "README.md"
+authors = [
+    { name = "maiki93", email = "fake@fake.com" }
+]
+
+requires-python = ">=3.14"
+dependencies = [
+    "colorlog>=6.10.1",
+    "python-json-logger>=4.1.0",
+    "pyyaml",
+    "textual>=8.2.7",
+    "typer>=0.26.7",
+    "yfinance>=1.4.1",
+]
+
+[project.scripts]
+yfinance_cli = "yfinance_tools.app.yf_cli:main"
+yfinance_tui = "yfinance_tools.app.yf_tui:main"
+
+[build-system]
+requires = ["uv_build>=0.11.13,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+    "pytest-cov>=7.1.0",
+    "pytest-mock>=3.15.1",
+    "ruff>=0.15.17",
+]
+
+# optional, they are the default values
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+addopts = "--cov=yfinance_tools --cov-report=term-missing --cov-report=html"
+
+[tool.coverage.run]
+branch = true  # Tracks execution of both 'if' and 'else' branches
+source = ["yfinance_tools"]
+
+[tool.coverage.report]
+# This will cause pytest to exit with a non-zero code if
+# total coverage is below 90%
+fail_under = 90
+show_missing = true
+skip_covered = true
+# may omit cli, but bootstrap important
+#omit = [
+#    "src/yfinance_tools/app/yf_cli.py",
+#    "src/yfinance_tools/bootstrap.py",
+#]
+
+# good practice to add ruff configuration in pyproject
+[tool.ruff]
+# Target Python version
+target-version = "py314"
+line-length = 120
+
+[tool.ruff.lint]
+# Enable Pyflakes (F) and Flake8 (E/W) rules by default
+# "I" automatically handles import sorting (isort)
+select = ["E", "F", "I"]

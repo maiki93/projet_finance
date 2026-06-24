@@ -1,0 +1,46 @@
+version: 1
+disable_existing_loggers: False
+
+formatters:
+  json_formatter:
+    (): pythonjsonlogger.json.JsonFormatter
+    format: "%(asctime)s %(name)s %(levelname)s %(message)s"
+    rename_fields:
+      levelname: level
+      asctime: time
+  console_formatter:
+    format: "%(name)s - %(levelname)s - %(message)s"
+  colored_formatter:
+    (): colorlog.ColoredFormatter
+    # format strings use standard keys, but you add %(log_color)s and %(reset)s
+    #format: "%(log_color)s%(levelname)-8s%(reset)s %(blue)s%(asctime)s%(reset)s [%(name)s] %(message)s"
+    format: "%(log_color)s%(name)s - %(levelname)s - %(message)s"
+    # Optional: Customize colors. Default is totally fine, but can be changed
+    # log_colors:
+    #   DEBUG:    cyan
+    #   INFO:     green
+    #   WARNING:  yellow
+    #   ERROR:    red
+    #   CRITICAL: red,bg_white
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    formatter: colored_formatter
+    level: INFO
+
+  file:
+    class: logging.FileHandler
+    filename: debug.log
+    formatter: colored_formatter
+    level: INFO
+
+loggers:
+  yfinance_tools:
+    handlers: [file]
+    level: INFO
+    propagate: False
+
+root:
+  handlers: [file]
+  level: WARNING
