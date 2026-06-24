@@ -11,3 +11,7 @@ wheels/
 
 # project specific
 debug.log
+.coverage
+
+# also for ai agents
+notes/**
