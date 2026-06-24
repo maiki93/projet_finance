@@ -8,10 +8,14 @@ from yfinance_tools.services import AssetService
 
 from .fakes import FakeIdentifierRegistry
 
+#
+# this template input proposes an asset of each type
+#
+# number of items in the template_registry_data fixture
+NB_ITEMS_TEMPLATE_REGISTRY_DATA = 5
 
-# this standard input proposes an asset of each type
-# more flexible to use as fixture
-# TODO return copy or immutable dict ?
+
+# TODO Need to return a copy or immutable dict ? not yet (read-only)
 @fixture
 def template_registry_data() -> dict:
     return {
@@ -37,23 +41,10 @@ def template_registry_data() -> dict:
 
 @fixture(name="asset_service_factory")
 def _asset_service_factory():
-    """Return a AssetService configured with a FinancialIdentifierInMemory accepting static_data"""
+    """Return a AssetService configured with a FakeIdentifierRegistry accepting static_data"""
 
     def _build_service(static_identifiers):
-        # identifier = InMemoryIdentifierRegistry(dictionary_data)
         registry_identifier = FakeIdentifierRegistry(static_identifiers)
         return AssetService(registry_identifier, None)
 
     return _build_service
-
-
-# not needed of this implementation
-# @fixture(name="in_memory_identifier_factory")
-# def _in_memory_identifier_factory():
-#     """Returns a factory of FinancialIdentifierInMemory accepting static_data"""
-
-#     def _build_instance(dictionary_data):
-#         identifier = InMemoryIdentifierRegistry(dictionary_data)
-#         return identifier
-
-#     return _build_instance

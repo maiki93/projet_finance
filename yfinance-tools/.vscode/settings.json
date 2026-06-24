@@ -1,6 +1,8 @@
 {
     // exclude files from copilot suggestions
     "github.copilot.excludedFiles": ["notes/**"],
+    // enable the Agent Debug Logs
+    "github.copilot.chat.agentDebugLog.fileLogging.enabled": true,
 
     "files.exclude": {
         "**/__pycache__": true,
@@ -31,5 +33,6 @@
         "tests"
     ],
     "python.testing.unittestEnabled": false,
-    "python.testing.pytestEnabled": true
+    "python.testing.pytestEnabled": true,
+
 }

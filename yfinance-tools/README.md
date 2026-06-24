@@ -17,6 +17,8 @@ Purpose:
 
 ```bash
 uv sync
+
+# CLI tool
 uv run yfinance_cli --help
 # or in an active venv
 yfinance_cli --help
@@ -25,25 +27,31 @@ yfinance_cli --help
 ## Running Tests
 
 ```bash
-# added coverage configuration in pyproject.toml
 uv run pytest
+# specific file or test, multithreaded
+uv run pytest --no-cov -n auto
+uv run pytest --no-cov tests/test_identifier_registry.py::test_load_identifier_from_file
+# --last-failed
+uv run pytest --lf -v
+
+# call coverage (or configuration in pyproject.toml)
+uv run pytest --cov=yfinance_tools --cov-report=term-missing --cov-report=html
 ```
 
 ## Linter and formatter
 ```bash
 # ruff configured in pyproject.toml
-ruff check .
+uv run ruff check .
 ```
 
 ## Build Package
 ```bash
-# build src and dist.whl packages in ./dist directory
+# build src.tar.gz and dist.whl packages in ./dist directory
 uv build
 
 # to "clean", delete all caches and *pyc files. to add in a Makefile if not better
 find . -name ".venv" -prune -o -type d \( -name "__pycache__" -o -name ".pytest_cache" \) -print -exec rm -rf {} +
 ```
 
-## VScode Settings
 
 

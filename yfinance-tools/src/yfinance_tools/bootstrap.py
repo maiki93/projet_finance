@@ -15,7 +15,7 @@ from yfinance_tools.adapters import InFileIdentifierRegistry
 from yfinance_tools.services import AssetService
 
 
-def bootstrap_app(verbose: bool = False) -> AssetService:
+def bootstrap_app(verbose: bool = False, registry_filename: str = "static_assets.json") -> AssetService:
     """Initializes configuration, logging, and wires dependencies."""
 
     # reads the file directly from the package structure
@@ -52,6 +52,6 @@ def bootstrap_app(verbose: bool = False) -> AssetService:
     yfinance_logger.info(f"yfinance-tools.version: {yfinance_tools.__version__}")
     yfinance_logger.info(f"globally enabled debug: {verbose}")
 
-    # TODO avoid hardcoded filename
-    asset_service = AssetService(InFileIdentifierRegistry("static_assets.json"), None)
+    # use provided registry filename or default
+    asset_service = AssetService(InFileIdentifierRegistry(registry_filename), None)
     return asset_service

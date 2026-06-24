@@ -25,6 +25,9 @@ def main_callback(
     ctx: typer.Context,
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable debug logging output to the console."),
     json: bool = typer.Option(False, "--json", help="Format output in json format"),
+    registry_filename: str = typer.Option(
+        "static_assets.json", "--registry-filename", help="Path to the registry JSON file"
+    ),
 ):
     """
     Bootstrap application and store CLI options in ctx.obj
@@ -37,7 +40,7 @@ def main_callback(
 
     # Choose the right adapters based on user flags
     # and build the services (+ configure logging)
-    asset_service = bootstrap_app(verbose)
+    asset_service = bootstrap_app(verbose, registry_filename)
 
     # Save to the CLI context container
     ctx.obj["asset_service"] = asset_service
@@ -57,8 +60,8 @@ def list_assets(
     market: Annotated[str | None, typer.Argument(help="filter by market")] = None,
 ):
     """
-    Print by default the list of all [bold]assets[/bold] present in the [bold]identifier registry[/bold] static storage
-    (file or DB)
+    Print by default the list of all [bold]assets[/bold] present in the [bold]identifier registry[/bold],
+    static storage (file or DB)
 
     Use optional --name / --asset_type / --market to filter the output
     """

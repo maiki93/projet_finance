@@ -29,7 +29,7 @@ build-backend = "uv_build"
 dev = [
     "pytest>=9.0.3",
     "pytest-cov>=7.1.0",
-    "pytest-mock>=3.15.1",
+    "pytest-xdist>=3.8.0",
     "ruff>=0.15.17",
 ]
 
@@ -37,7 +37,7 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
-addopts = "--cov=yfinance_tools --cov-report=term-missing --cov-report=html"
+# addopts = "--cov=yfinance_tools --cov-report=term-missing --cov-report=html"
 
 [tool.coverage.run]
 branch = true  # Tracks execution of both 'if' and 'else' branches
@@ -50,10 +50,7 @@ fail_under = 90
 show_missing = true
 skip_covered = true
 # may omit cli, but bootstrap important
-#omit = [
-#    "src/yfinance_tools/app/yf_cli.py",
-#    "src/yfinance_tools/bootstrap.py",
-#]
+#omit = [ "src/yfinance_tools/app/yf_cli.py" ]
 
 # good practice to add ruff configuration in pyproject
 [tool.ruff]

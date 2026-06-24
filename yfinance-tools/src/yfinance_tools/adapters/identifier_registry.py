@@ -32,6 +32,6 @@ class InFileIdentifierRegistry(IdentifierRegistryPort):
             try:
                 data = json.load(f)
             except json.decoder.JSONDecodeError:
-                raise IdentifierRegistryError("Invalid JSON format")
+                raise IdentifierRegistryError("invalid JSON format: " + self._file_path)
 
         return data
