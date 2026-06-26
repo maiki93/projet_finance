@@ -29,29 +29,28 @@ yfinance_cli --help
 ```bash
 uv run pytest
 # specific file or test, multithreaded
-uv run pytest --no-cov -n auto
-uv run pytest --no-cov tests/test_identifier_registry.py::test_load_identifier_from_file
+uv run pytest -n auto
+uv run pytest tests/test_identifier_registry.py::test_load_identifier_from_file
 # --last-failed
 uv run pytest --lf -v
 
-# call coverage (or configuration in pyproject.toml)
+# call coverage (or configuration in pyproject.toml but need --no-cov for fast tests)
+# TODO check -n auto and coverage  , may be problematic
 uv run pytest --cov=yfinance_tools --cov-report=term-missing --cov-report=html
 ```
 
 ## Linter and formatter
+ruff and mypy configured in pyproject.toml (available for VScode also)
 ```bash
-# ruff configured in pyproject.toml
+uv run mypy .
 uv run ruff check .
 ```
 
 ## Build Package
+Build src.tar.gz and dist.whl packages in ./dist directory
 ```bash
-# build src.tar.gz and dist.whl packages in ./dist directory
 uv build
 
 # to "clean", delete all caches and *pyc files. to add in a Makefile if not better
 find . -name ".venv" -prune -o -type d \( -name "__pycache__" -o -name ".pytest_cache" \) -print -exec rm -rf {} +
 ```
-
-
-

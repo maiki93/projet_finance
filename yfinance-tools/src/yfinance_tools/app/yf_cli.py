@@ -28,7 +28,7 @@ def main_callback(
     registry_filename: str = typer.Option(
         "static_assets.json", "--registry-filename", help="Path to the registry JSON file"
     ),
-):
+) -> None:
     """
     Bootstrap application and store CLI options in ctx.obj
 
@@ -58,7 +58,7 @@ def list_assets(
     name: Annotated[str | None, typer.Argument(help="must provide exact name")] = None,
     type: Annotated[str | None, typer.Argument(help="filter by asset type")] = None,
     market: Annotated[str | None, typer.Argument(help="filter by market")] = None,
-):
+) -> None:
     """
     Print by default the list of all [bold]assets[/bold] present in the [bold]identifier registry[/bold],
     static storage (file or DB)
@@ -80,7 +80,8 @@ def list_assets(
         raise typer.Exit(code=1)
 
     if ctx.obj["JSON"]:
-        rprint(assets)
+        # rprint([asset.to_dict() for asset in assets])
+        rprint([asset.to_json() for asset in assets])
     else:
         title = f"Assets ([bold magenta]{len(assets)}[/bold magenta])"
         table = Table(title=title)
@@ -93,7 +94,7 @@ def list_assets(
             table.add_row(
                 asset.name,
                 asset.type.name,
-                asset.isin or "-",
+                str(asset.isin) if asset.isin else "-",
                 asset.yf_ticker or "-",
             )
 
@@ -101,7 +102,7 @@ def list_assets(
 
 
 @app.command()
-def update_value(ctx: typer.Context, name: Annotated[str, typer.Argument(help="name of the asset")] = "Toto"):
+def update_value(ctx: typer.Context, name: Annotated[str, typer.Argument(help="name of the asset")] = "Toto") -> None:
     """
     Retrieve last values of the asset from yahoo finance
     """
@@ -110,7 +111,7 @@ def update_value(ctx: typer.Context, name: Annotated[str, typer.Argument(help="n
     raise typer.Exit(1)
 
 
-def main():
+def main() -> None:
     """Entry point"""
     app()
 

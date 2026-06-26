@@ -1,17 +1,11 @@
 """
-Core package, defines:
-    Tickers
+Core package
 """
 
 from . import exceptions  # Import the module, not the classes
-from .assets import Asset, AssetType
-from .financial_identifier import FinancialIdentifier
+from .asset import Asset
+from .financial_identifier import FinancialIdentifierEntry, FinancialIdentifiers
+from .financial_models import ISIN, AssetType
 
-# from .exceptions import IdentifierRegistryError, YFinanceToolsError
-
-# act as a facade, define the exposed classes as public API
-# usage: from yfinance_tools.core import AssetsData
-# or : from yfinance_tools.domain.exceptions import IdentifierRegistryError
-
-# use exceptions rather that publish all "important"  errors
-__all__ = ["Asset", "AssetType", "FinancialIdentifier", "exceptions"]
+# use exceptions rather that publishing all errors
+__all__ = ["AssetType", "ISIN", "Asset", "FinancialIdentifierEntry", "FinancialIdentifiers", "exceptions"]

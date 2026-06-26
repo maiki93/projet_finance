@@ -1,13 +1,15 @@
 """
 Service to orchestrate retrieval and update of FinancialIdentifier and Asset models
 
-Use of YfService and FinancialIdentifierSource Protcol
+Dependencies on
+- IdentifierRegistry as source of Financial Identifers (static data)
+- YfService / YfLibrary to retrieve data from Yahoo Finance (dynamic data)
 """
 
 import logging
 
-from yfinance_tools.domain import Asset, AssetType, FinancialIdentifier
-from yfinance_tools.domain.exceptions import YFinanceToolsError
+from yfinance_tools.domain import Asset, FinancialIdentifiers
+from yfinance_tools.domain.exceptions import IdentifierError, YFinanceToolsError
 
 from .outbound_ports import IdentifierRegistryPort, YFinancePort
 
@@ -16,9 +18,7 @@ logger = logging.getLogger(__name__)
 
 class AssetService:
     """
-    Main orchestrator.
-
-    Stateless component
+    Main orchestrator, stateless component
     """
 
     def __init__(
@@ -35,24 +35,25 @@ class AssetService:
         available in FinancialIdentifier Source
         """
 
-        asset_static_ids = {}
-
-        # a better usage ?
-        # assets = AssetFactory.byAssetType(asset_type)
-        #                      .byMarket(market)
-
-        # load static data from the registry to build domain models
+        # load static data from the registry
         try:
-            asset_static_ids = self._identifier_registry.load()
+            identifiers: FinancialIdentifiers = self._identifier_registry.load()
         except YFinanceToolsError as ex:
             logger.error(ex)
             raise ex
 
-        identifier = FinancialIdentifier(asset_static_ids)
-        assets: list[Asset] = []
-        # for name, data in asset_static_ids.items():
-        for name in identifier.get_entries():
-            data = identifier.find(name)
-            asset = Asset(name, AssetType[data["type"]], data["yfIsin"], data["yfTicker"])
-            assets.append(asset)
+        # create assets
+        assets = [
+            Asset.asset_from_entry(entry)
+            for name in identifiers.get_entries()
+            if not isinstance(entry := identifiers.find(name), IdentifierError)
+        ]
+
+        # more verbose, with assert would crash if entry is not valid (IdentifierError)
+        # assets: list[Asset] = []
+        # for name in identifiers.get_entries():
+        #     entry = identifiers.find(name)
+        #     assert isinstance(entry, FinancialIdentifierEntry), f"Unexpected state: {type(entry)}"
+        #     assets.append(Asset.asset_from_entry(entry))
+
         return assets

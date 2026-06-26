@@ -8,7 +8,7 @@ import logging
 import logging.config
 from importlib import resources
 
-import yaml
+import yaml  # mypy complains
 
 import yfinance_tools  # only for accessing __version__
 from yfinance_tools.adapters import InFileIdentifierRegistry

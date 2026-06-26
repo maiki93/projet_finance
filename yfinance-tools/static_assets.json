@@ -1,1 +1,25 @@
-{"quantum": {"yfTicker": "QNT", "yfIsin": "US7479066000", "type": "EQUITY"}, "cac40": {"yfTicker": "^FCHI", "yfIsin": "FR0003500008", "type": "INDEX"}, "eurusd": {"yfTicker": "EURUSD=X", "yfIsin": "", "type": "FOREX"}, "bitcoin": {"yfTicker": "BTC-USD", "yfIsin": "", "type": "DIGITAL_ASSET"}, "natixis_horizon_40_44": {"yfTicker": "0P00014IGT.F", "yfIsin": "FR0011461276", "type": "MUTUAL_FUND"}}
+{
+    "quantum": {
+        "yfTicker": "QNT",
+        "isin": "US7479066000",
+        "asset_type": "EQUITY"
+    },
+    "cac40": {
+        "yfTicker": "^FCHI",
+        "isin": "FR0003500008",
+        "asset_type": "INDEX"
+    },
+    "eurusd": {
+        "yfTicker": "EURUSD=X",
+        "asset_type": "FOREX"
+    },
+    "bitcoin": {
+        "yfTicker": "BTC-USD",
+        "asset_type": "DIGITAL_ASSET"
+    },
+    "natixis_horizon_40_44": {
+        "yfTicker": "0P00014IGT.F",
+        "isin": "FR0011461276",
+        "asset_type": "MUTUAL_FUND"
+    }
+}

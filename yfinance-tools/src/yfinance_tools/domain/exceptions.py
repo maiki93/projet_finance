@@ -14,3 +14,9 @@ class IdentifierRegistryFileNotExistingError(YFinanceToolsError):
     """Errors related to the loading or format of financial identifiers."""
 
     pass
+
+
+class IdentifierError(YFinanceToolsError):
+    """Errors related to the loading or format of financial identifiers."""
+
+    pass
