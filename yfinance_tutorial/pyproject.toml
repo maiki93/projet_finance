@@ -13,5 +13,6 @@ dev = [
     "ipykernel>=7.2.0",
     "matplotlib>=3.10.9",
     "pympler>=1.1",
+    "pytest-benchmark>=5.2.3",
     "rich[jupyter]>=15.0.0",
 ]
