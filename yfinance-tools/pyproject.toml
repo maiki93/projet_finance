@@ -31,6 +31,7 @@ dev = [
     "mypy>=2.1.0",
     "pytest>=9.0.3",
     "pytest-cov>=7.1.0",
+    "pytest-mock>=3.15.1",
     "pytest-xdist>=3.8.0",
     "ruff>=0.15.17",
     "types-pyyaml>=6.0.12.20260518",
@@ -41,6 +42,9 @@ dev = [
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
 # addopts = "--cov=yfinance_tools --cov-report=term-missing --cov-report=html"
+markers = [
+    "webreq: tests requiring web requests"
+]
 
 [tool.coverage.run]
 branch = true  # Tracks execution of both 'if' and 'else' branches

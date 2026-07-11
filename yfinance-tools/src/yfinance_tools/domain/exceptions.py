@@ -20,3 +20,7 @@ class IdentifierError(YFinanceToolsError):
     """Errors related to the loading or format of financial identifiers."""
 
     pass
+
+
+class YFinanceError(YFinanceToolsError):
+    """Erros related to the use of yfinance apadater"""

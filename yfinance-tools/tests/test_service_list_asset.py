@@ -14,15 +14,15 @@ from yfinance_tools.domain import Asset
 from yfinance_tools.domain.exceptions import YFinanceToolsError
 
 
-def test_get_list_of_all_assets(asset_service_factory, template_registry_data) -> None:
+def test_get_list_of_all_assets(asset_service_factory_fake_registry, template_registry_data) -> None:
 
-    assets: list[Asset] = asset_service_factory(template_registry_data).list_assets()
+    assets: list[Asset] = asset_service_factory_fake_registry(template_registry_data).list_assets()
 
     assert len(assets) == NB_ITEMS_TEMPLATE_REGISTRY_DATA
 
 
-def test_identifier_registry_error(asset_service_factory) -> None:
+def test_identifier_registry_error(asset_service_factory_fake_registry) -> None:
 
-    asset_service = asset_service_factory({}, error_registry=YFinanceToolsError("RegistryError"))
+    asset_service = asset_service_factory_fake_registry({}, error_registry=YFinanceToolsError("RegistryError"))
     with pytest.raises(YFinanceToolsError, match="RegistryError"):
         asset_service.list_assets()

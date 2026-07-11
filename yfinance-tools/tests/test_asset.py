@@ -6,44 +6,67 @@ Domain core layer
 
 import pytest
 
-from yfinance_tools.domain import ISIN, Asset, AssetType
+from yfinance_tools.domain import ISIN, Asset, AssetType, FinancialIdentifierEntry
 
 
-def test_asset_construction_only_required_parameters():
+def test_asset_yfticker_only_required() -> None:
 
-    asset1 = Asset("toto", AssetType["INDEX"])
+    fin_id = FinancialIdentifierEntry("TOTO")
+    asset1 = Asset.from_entry("toto", fin_id)
+
     assert asset1.name == "toto"
-    assert asset1.type == AssetType.INDEX
+    assert asset1.yf_ticker == "TOTO"
+    assert asset1.type == AssetType.UNDEFINED
     assert asset1.isin is None
-    assert asset1.yf_ticker is None
 
 
-def test_asset_construction_all_parameters():
+def test_asset_construction_all_parameters() -> None:
 
-    asset = Asset("toto", AssetType["INDEX"], ISIN("FT0123456789"), "TOTO")
+    fin_id = FinancialIdentifierEntry("TOTO", asset_type=AssetType["EQUITY"], currency="EUR", isin=ISIN("FT0123456789"))
+    asset = Asset("toto", fin_id)
     assert asset.name == "toto"
-    assert asset.type == AssetType.INDEX
-    assert asset.isin == ISIN("FT0123456789")
     assert asset.yf_ticker == "TOTO"
+    assert asset.type == AssetType.EQUITY
+    assert asset.currency == "EUR"
+    assert asset.isin == ISIN("FT0123456789")
 
 
-@pytest.mark.parametrize("invalid_isin", ["not-an-isin", "120123456789", "fr0123456789"])
-def test_invalid_isin(invalid_isin: str):
-    with pytest.raises(ValueError, match="Invalid ISIN format"):
-        Asset("invalid", AssetType.EQUITY, isin=ISIN(invalid_isin))
+# TODO test internal implementation, not best
+def test_store_copy_of_entry() -> None:
+
+    fin_id = FinancialIdentifierEntry("TEST")
+    asset = Asset.from_entry("test", fin_id)
+    assert asset._static_identifiers == fin_id
+    assert asset._static_identifiers is not fin_id
 
 
-def test_to_json():
+def test_invalid_name() -> None:
+    with pytest.raises(ValueError, match="Invalid name format"):
+        Asset.from_entry("a" * 52, FinancialIdentifierEntry("TEST"))
 
-    asset = Asset("eurusd", AssetType.FOREX, None, None)
-    str_json = asset.to_json()
-    assert str_json == '{"name": "eurusd", "type": "FOREX", "isin": null, "yf_ticker": null}'
+    with pytest.raises(ValueError, match="Invalid name format"):
+        Asset.from_entry("", FinancialIdentifierEntry("TEST"))
 
-    asset = Asset(
-        "eurusd",
-        AssetType.FOREX,
-        ISIN("FR0123456789"),
-        "EURUSD=X",
+
+def test_to_json() -> None:
+    # only required
+    fin_id = FinancialIdentifierEntry("EURUSD=X")
+    asset = Asset.from_entry("eurusd", fin_id)
+
+    expected_json_str = (
+        '{"name": "eurusd", "yf_ticker": "EURUSD=X", "type": "UNDEFINED", "currency": null, "isin": null}'
     )
+
     str_json = asset.to_json()
-    assert str_json == '{"name": "eurusd", "type": "FOREX", "isin": "FR0123456789", "yf_ticker": "EURUSD=X"}'
+    assert str_json == expected_json_str
+
+    # all entries
+    fin_id2 = FinancialIdentifierEntry("QNT", asset_type=AssetType["EQUITY"], currency="USD", isin=ISIN("US7479066000"))
+    expected_json_str2 = (
+        '{"name": "quantum", "yf_ticker": "QNT", "type": "EQUITY", "currency": "USD", "isin": "US7479066000"}'
+    )
+
+    asset2 = Asset.from_entry("quantum", fin_id2)
+    str_json2 = asset2.to_json()
+
+    assert str_json2 == expected_json_str2

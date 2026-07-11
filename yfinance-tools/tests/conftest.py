@@ -7,13 +7,14 @@ A factory of AssetService with fakes adapters
 
 from pytest import fixture
 
-from yfinance_tools.domain import ISIN, AssetType, FinancialIdentifierEntry, FinancialIdentifiers
-from yfinance_tools.services import AssetService
+from yfinance_tools.domain import FinancialIdentifiers
+from yfinance_tools.services import AssetService, IdentifierRegistryPort, YFinancePort
 
-from .fakes import FakeIdentifierRegistry
+from .fakes.fake_identifier_registry import FakeIdentifierRegistry
+from .utils import fid_entry_from_dict
 
 """Number of items in the template_registry_data fixture"""
-NB_ITEMS_TEMPLATE_REGISTRY_DATA = 5
+NB_ITEMS_TEMPLATE_REGISTRY_DATA = 6
 
 
 # TODO Need to return an immutable dict ? not yet (read-only for the moment)
@@ -28,21 +29,24 @@ def template_registry_data() -> dict:
         },
         "cac40": {
             "yfTicker": "^FCHI",
-            "isin": "FR0003500008",
             "asset_type": "INDEX",
+            "currency": "EUR",
+            "isin": "FR0003500008",
         },
         "eurusd": {"yfTicker": "EURUSD=X", "asset_type": "FOREX", "isin": None},
-        "bitcoin": {"yfTicker": "BTC-USD", "asset_type": "DIGITAL_ASSET"},  # "isin": None},
+        "bitcoin": {"yfTicker": "BTC-USD", "asset_type": "DIGITAL_ASSET"},
         "natixis_horizon_40_44": {
             "yfTicker": "0P00014IGT.F",
-            "isin": "FR0011461276",
             "asset_type": "MUTUAL_FUND",
+            "currency": "EUR",
+            "isin": "FR0011461276",
         },
+        "apple": {"yfTicker": "APPL"},
     }
 
 
-@fixture(name="asset_service_factory")
-def _asset_service_factory():
+@fixture(name="asset_service_factory_fake_registry")
+def _asset_service_factory_fake_registry():
     """
     Return a AssetService configured with a FakeIdentifierRegistry.
 
@@ -59,22 +63,33 @@ def _asset_service_factory():
     return _build_service
 
 
+@fixture(name="asset_service_factory")
+def _asset_service_factory():
+    """
+    Return a AssetService fully configurable
+
+    Optional set exceptions thrown by adapters
+    """
+
+    def _build_service(
+        registry_adapter: IdentifierRegistryPort,
+        yfinance_adapter: YFinancePort,
+    ) -> AssetService:
+
+        return AssetService(registry_adapter, yfinance_adapter)
+
+    return _build_service
+
+
 @fixture(name="financial_identifier_factory")
 def _financial_identifiers_factory():
-    def _build_idientifiers(static_identifiers):
+    def _build_idientifiers(static_identifiers) -> FinancialIdentifiers:
 
-        ## TODO too verbose
         fin_id = FinancialIdentifiers()
 
         for name, items in static_identifiers.items():
-            # pythonic alternative: self._entries.get(name, _not_found) ??
-            entry = FinancialIdentifierEntry(
-                name,
-                AssetType(items["asset_type"]) if items.get("asset_type") is not None else AssetType.UNDEFINED,
-                items["yfTicker"] if items.get("yfTicker") is not None else None,
-                ISIN(value=items["isin"]) if items.get("isin") else None,
-            )
-            fin_id.add_entry(entry)
+            entry = fid_entry_from_dict(items)
+            fin_id.add_entry(name, entry)
 
         return fin_id
 

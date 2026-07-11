@@ -12,6 +12,7 @@ import yaml  # mypy complains
 
 import yfinance_tools  # only for accessing __version__
 from yfinance_tools.adapters import InFileIdentifierRegistry
+from yfinance_tools.adapters.yfinance_adapter import YFinanceAdapter
 from yfinance_tools.services import AssetService
 
 
@@ -53,5 +54,5 @@ def bootstrap_app(verbose: bool = False, registry_filename: str = "static_assets
     yfinance_logger.info(f"globally enabled debug: {verbose}")
 
     # use provided registry filename or default
-    asset_service = AssetService(InFileIdentifierRegistry(registry_filename), None)
+    asset_service = AssetService(InFileIdentifierRegistry(registry_filename), YFinanceAdapter())
     return asset_service

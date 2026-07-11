@@ -13,6 +13,8 @@ from rich.table import Table
 from yfinance_tools.bootstrap import bootstrap_app
 from yfinance_tools.domain import Asset
 from yfinance_tools.domain.exceptions import YFinanceToolsError
+from yfinance_tools.domain.financial_identifier_entry import PendingIdentifierEntryUpdate
+from yfinance_tools.services.asset_service import AssetService
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +30,7 @@ def main_callback(
     registry_filename: str = typer.Option(
         "static_assets.json", "--registry-filename", help="Path to the registry JSON file"
     ),
+    always_yes: bool = typer.Option(False, "--yes", help="do not ask for confirmation, always accept"),
 ) -> None:
     """
     Bootstrap application and store CLI options in ctx.obj
@@ -47,6 +50,11 @@ def main_callback(
 
     # global CLI options to pass to every commands
     ctx.obj["JSON"] = json
+    ctx.obj["always_yes"] = always_yes
+
+    logger.debug("context settings:")
+    logger.debug(f"JSON : {json}")
+    logger.debug(f"always_yes : {always_yes}")
 
     # access to the current command
     logger.debug(f"invoked command: {ctx.invoked_subcommand}")
@@ -79,9 +87,81 @@ def list_assets(
         rprint(f"[red]end program - {ex}[/red]")
         raise typer.Exit(code=1)
 
-    if ctx.obj["JSON"]:
-        # rprint([asset.to_dict() for asset in assets])
+    print_assets(assets, ctx.obj["JSON"])
+
+
+@app.command()
+def update_static_data(
+    ctx: typer.Context,
+    name: Annotated[str, typer.Argument(help="name of the asset")] = "Toto",
+    force_all: Annotated[bool, typer.Option("--force-all", help="force fetching all assets")] = False,
+) -> None:
+    """
+    Retrieve static identifers data from yahoo finance and update the registry
+    """
+
+    logger.info("update_static_data command")
+    logger.info("name:%s", name)
+
+    asset_service: AssetService = ctx.obj["asset_service"]
+
+    try:
+        pendings: list[PendingIdentifierEntryUpdate] = asset_service.get_static_data_pending_update(force_all)
+
+    except YFinanceToolsError as ex:
+        rprint(f"[red]end program - {ex}[/red]")
+        raise typer.Exit(code=1)
+
+    confirmed_pendings = []
+
+    if ctx.obj["always_yes"]:
+        confirmed_pendings = pendings
+
+    else:
+        for pending in pendings:
+            rprint(pending)
+
+            if typer.confirm(f"Do you want apply those changes for {pending.name} ?"):
+                confirmed_pendings.append(pending)
+
+    # update model and registry
+    try:
+        filepath, assets = asset_service.update_registry(confirmed_pendings)
+    except YFinanceToolsError as ex:
+        logger.error(str(ex))
+        rprint(f"[red]end program - {ex}[/red]")
+        raise typer.Exit(code=1)
+
+    if len(assets) > 0:
+        rprint(f"update done: {filepath}")
+    else:
+        rprint("nothing to update")
+        return None
+
+    print_assets(assets, ctx.obj["JSON"])
+
+
+@app.command()
+def update_value(ctx: typer.Context, name: Annotated[str, typer.Argument(help="name of the asset")] = "Toto") -> None:
+    """
+    Retrieve last values of the asset from yahoo finance
+    """
+    logger.info("name:%s", name)
+    rprint("[red]To implement[/red]")
+    raise typer.Exit(1)
+
+
+#
+# Helper methods
+#
+
+
+def print_assets(assets: list[Asset], json_output: bool) -> None:
+    """Pretty print of assets"""
+
+    if json_output:
         rprint([asset.to_json() for asset in assets])
+
     else:
         title = f"Assets ([bold magenta]{len(assets)}[/bold magenta])"
         table = Table(title=title)
@@ -100,21 +180,9 @@ def list_assets(
 
         console.print(table)
 
-
-@app.command()
-def update_value(ctx: typer.Context, name: Annotated[str, typer.Argument(help="name of the asset")] = "Toto") -> None:
-    """
-    Retrieve last values of the asset from yahoo finance
-    """
-    logger.info("name:%s", name)
-    rprint("[red]To implement[/red]")
-    raise typer.Exit(1)
+    return None
 
 
 def main() -> None:
     """Entry point"""
     app()
-
-
-# if __name__ == "__main__":
-#     app()

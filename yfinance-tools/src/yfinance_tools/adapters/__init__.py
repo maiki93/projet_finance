@@ -1,4 +1,10 @@
-from .identifier_dto import IdentifierEntryDto
-from .identifier_registry import InFileIdentifierRegistry
+"""
+Outbound adpaters
 
-__all__ = ["InFileIdentifierRegistry", "IdentifierEntryDto"]
+DTO class are used only internally, must be import explicitly in tests
+"""
+
+from .identifier_registry_file import InFileIdentifierRegistry
+from .yfinance_adapter import YFinanceAdapter
+
+__all__ = ["InFileIdentifierRegistry", "YFinanceAdapter"]

@@ -1,11 +1,14 @@
+"""
+Pure values objects for the core domain
+"""
+
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import override
 
 
 class AssetType(StrEnum):
-    """
-    The different types of Assets
-    """
+    """Different types of Assets"""
 
     UNDEFINED = "UNDEFINED"  # During creation the type may be undefined ?
     EQUITY = "EQUITY"  # Action # auto() => generates lower case string
@@ -39,9 +42,21 @@ class ISIN:
 
     @staticmethod
     def _is_valid_isin(isin: str) -> bool:
-        # Basic validation for ISIN format (2 capital letters + 9 alphanumeric characters + 1 check digit)
+        """Validation for ISIN format (2 capital letters + 9 alphanumeric characters + 1 check digit)"""
         return len(isin) == 12 and isin[:2].isupper() and isin[2:11].isalnum() and isin[11].isdigit()
 
     # keep __repr__ for debug  / logs
     def __str__(self) -> str:
         return self.value
+
+    @override
+    def __eq__(self, other: object | None) -> bool:
+        """Allow comparison between FinancialIdentierEntries (object) and its serialization"""
+        if other is None:
+            return False
+        if isinstance(other, ISIN):
+            return self.value == other.value
+        if isinstance(other, str):
+            return self.value == other
+
+        raise TypeError(f"{str(other)}")

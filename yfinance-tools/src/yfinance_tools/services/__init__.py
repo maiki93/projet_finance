@@ -1,4 +1,4 @@
 from .asset_service import AssetService
-from .outbound_ports import IdentifierRegistryPort
+from .outbound_ports import IdentifierRegistryPort, YFinancePort
 
-__all__ = ["AssetService", "IdentifierRegistryPort"]
+__all__ = ["AssetService", "IdentifierRegistryPort", "YFinancePort"]

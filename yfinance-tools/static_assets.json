@@ -1,25 +1,38 @@
 {
     "quantum": {
         "yfTicker": "QNT",
-        "isin": "US7479066000",
         "asset_type": "EQUITY"
     },
     "cac40": {
         "yfTicker": "^FCHI",
-        "isin": "FR0003500008",
-        "asset_type": "INDEX"
+        "asset_type": "INDEX",
+        "currency": "EUR",
+        "isin": "FR0003500008"
     },
     "eurusd": {
         "yfTicker": "EURUSD=X",
-        "asset_type": "FOREX"
+        "asset_type": "FOREX",
+        "currency": "EUR"
     },
     "bitcoin": {
         "yfTicker": "BTC-USD",
         "asset_type": "DIGITAL_ASSET"
     },
     "natixis_horizon_40_44": {
-        "yfTicker": "0P00014IGT.F",
-        "isin": "FR0011461276",
-        "asset_type": "MUTUAL_FUND"
+        "yfTicker": "0P00014IGTF",
+        "asset_type": "MUTUAL_FUND",
+        "currency": "EUR",
+        "isin": "FR0011461276"
+    },
+    "apple": {
+        "yfTicker" : "AAPL"
+    },
+    "invalid": {
+        "yfTicker" : "WRONG",
+        "asset_type": "INVALID"
+    },
+    "invalid2": {
+        "yfTicker" : "WRONG",
+        "ISIN": "012345678912"
     }
 }

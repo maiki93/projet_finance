@@ -31,8 +31,11 @@ uv run pytest
 # specific file or test, multithreaded
 uv run pytest -n auto
 uv run pytest tests/test_identifier_registry.py::test_load_identifier_from_file
-# --last-failed
-uv run pytest --lf -v
+# --last-failed, -vv full verbosity (no truncation of output)
+uv run pytest --lf -vv
+# avoid tests requiring web requests (use markers) and all tests in test_cli.py - fastest
+uv run pytest -m "not webreq"
+uv run pytest -m "not webreq" -k "not test_cli"
 
 # call coverage (or configuration in pyproject.toml but need --no-cov for fast tests)
 # TODO check -n auto and coverage  , may be problematic
