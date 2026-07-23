@@ -21,7 +21,7 @@ class IdentifierRegistryPort(Protocol):
         """
         ...
 
-    def update_registry(self, pending_update: list[PendingIdentifierEntryUpdate]) -> tuple[str | None, str | None]:
+    def update_registry(self, pendings: list[PendingIdentifierEntryUpdate]) -> tuple[str | None, str | None]:
         """
         Update the registry with merged attribute of the provided entries
 
@@ -36,7 +36,7 @@ class YFinancePort(Protocol):
     """
 
     # name is not good
-    def get_static_identifiers(self, ids: dict[str, FinancialIdentifierEntry]) -> dict[str, FinancialIdentifierEntry]:
+    def fetch_static_identifiers(self, ids: dict[str, FinancialIdentifierEntry]) -> dict[str, FinancialIdentifierEntry]:
         """
         ISIN, currency,...
         """

@@ -24,3 +24,7 @@ class IdentifierError(YFinanceToolsError):
 
 class YFinanceError(YFinanceToolsError):
     """Erros related to the use of yfinance apadater"""
+
+
+class YFinanceWebFetchError(YFinanceError):
+    """Erros related to the use of yahoo finance API"""

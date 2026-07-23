@@ -73,7 +73,7 @@ class AssetService:
             raise RuntimeError("YFinancePort adapter is not initialized")
 
         # get yf_ticker() more specific (may need Type definition)
-        incoming_static_update = self._yfinance.get_static_identifiers(
+        incoming_static_update = self._yfinance.fetch_static_identifiers(
             self.financial_identifiers.candidates_for_update(force_all)
         )
 

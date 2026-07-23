@@ -40,7 +40,7 @@ def fid_entry_from_dict(data: dict[str, str]) -> FinancialIdentifierEntry:
 
     return FinancialIdentifierEntry(
         yf_ticker=yf_ticker,
-        asset_type=AssetType[data.get("asset_type", "UNDEFINED")],
+        asset_type=AssetType[data.get("assetType", "UNDEFINED")],
         currency=data.get("currency", None),
         isin=ISIN(data["isin"].upper()) if data.get("isin") else None,
     )

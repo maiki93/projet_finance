@@ -12,6 +12,8 @@ import logging
 import re
 from typing import cast
 
+import pytest
+
 from tests.fakes.fake_identifier_registry import FakeIdentifierRegistry
 from yfinance_tools.domain import (
     ISIN,
@@ -30,7 +32,7 @@ def create_initial_and_pending_update_for_get_static_data_update() -> tuple[dict
     original_data = {
         "apple": {"yfTicker": "APPL"},
         "eurusd": {"yfTicker": "EURUSD=X"},
-        "cac40": {"yfTicker": "^FCHI", "isin": "FR0003500008", "asset_type": "INDEX"},
+        "cac40": {"yfTicker": "^FCHI", "assetType": "INDEX", "isin": "FR0003500008"},
     }
 
     updated_data = {
@@ -55,7 +57,7 @@ def test_get_pending_update(mocker, asset_service_factory) -> None:
     registry_identifier = FakeIdentifierRegistry(original_data)
 
     mock_yfinance_adapter = mocker.create_autospec(YFinancePort, instance=True)
-    mock_yfinance_adapter.get_static_identifiers.return_value = return_from_yfinance
+    mock_yfinance_adapter.fetch_static_identifiers.return_value = return_from_yfinance
 
     service = asset_service_factory(registry_identifier, mock_yfinance_adapter)
 
@@ -67,9 +69,20 @@ def test_get_pending_update(mocker, asset_service_factory) -> None:
     assert {"eurusd", "apple", "new"} == {pending.name for pending in pendings}
 
     # it was called exactly 1 time
-    mock_yfinance_adapter.get_static_identifiers.assert_called_once()
-    assert mock_yfinance_adapter.get_static_identifiers.call_count == 1
-    # mock_yfinance_adapter.get_static_identifiers.assert_called_once_with("AAPL")
+    mock_yfinance_adapter.fetch_static_identifiers.assert_called_once()
+    assert mock_yfinance_adapter.fetch_static_identifiers.call_count == 1
+    # mock_yfinance_adapter.fetch_static_identifiers.assert_called_once_with("AAPL")
+
+
+def test_get_pendings_missing_yfadapter_dependecy(asset_service_factory):
+    original_data, return_from_yfinance = create_initial_and_pending_update_for_get_static_data_update()
+
+    # missing YFPort
+    registry_identifier = FakeIdentifierRegistry(original_data)
+    service = asset_service_factory(registry_identifier, None)
+
+    with pytest.raises(RuntimeError, match="YFinancePort adapter is not initialized"):
+        service.get_static_data_pending_update(force_all=False)
 
 
 def create_initial_and_pending_update_for_update_registry() -> tuple[dict, list[PendingIdentifierEntryUpdate]]:
@@ -77,7 +90,7 @@ def create_initial_and_pending_update_for_update_registry() -> tuple[dict, list[
 
     initial_data = {
         "apple": {"yfTicker": "APPL"},
-        "cac40": {"yfTicker": "^FCHI", "isin": "FR0003500008", "asset_type": "INDEX"},
+        "cac40": {"yfTicker": "^FCHI", "isin": "FR0003500008", "assetType": "INDEX"},
         "eurusd": {"yfTicker": "EURUSD=X"},
     }
 
@@ -136,12 +149,12 @@ def test_update_registry(asset_service_factory, caplog) -> None:
     #
     in_memory_registry = cast(FakeIdentifierRegistry, service._identifier_registry)
 
-    assert len(in_memory_registry._static_identifiers) == 4
-    assert "new" in in_memory_registry._static_identifiers
-    assert in_memory_registry._static_identifiers["apple"]["asset_type"] == "EQUITY"
+    assert len(in_memory_registry.fake_static_identifiers) == 4
+    assert "new" in in_memory_registry.fake_static_identifiers
+    assert in_memory_registry.fake_static_identifiers["apple"]["assetType"] == "EQUITY"
 
     #
-    # check return assets
+    # check return assets, only updated entries are returned
     #
     assert len(assets) == 3
     assert {"new", "eurusd", "apple"} == {asset.name for asset in assets}
@@ -156,3 +169,14 @@ def test_update_registry(asset_service_factory, caplog) -> None:
 
     pattern = r"backup resource: .*/in_memory_static_assets2\.json"
     assert re.search(pattern, caplog.text), f"Pattern '{pattern}' not found in log: {caplog.text}"
+
+
+def test_update_registry_empty_pendings(asset_service_factory) -> None:
+    registry_identifier = FakeIdentifierRegistry({})
+    service: AssetService = asset_service_factory(registry_identifier, None)
+
+    # update fin_id and registry
+    filepath, assets = service.update_registry([])
+
+    assert filepath == ""
+    assert assets == []

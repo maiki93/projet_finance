@@ -2,100 +2,139 @@
 Implementation of FinancialIdentifier for retrieval and storage in file (Outbound Port)
 """
 
-import json
 import logging
 import pathlib
-from typing import Any
 
-from pydantic import ValidationError
+from pydantic import TypeAdapter, ValidationError
 
+from yfinance_tools.adapters.basic_types_dto import AssetNameDto
 from yfinance_tools.domain import FinancialIdentifierEntry, FinancialIdentifiers, PendingIdentifierEntryUpdate
 from yfinance_tools.domain.exceptions import IdentifierRegistryError, IdentifierRegistryFileNotExistingError
 from yfinance_tools.services import IdentifierRegistryPort
 
-from .file_identifier_dto import IdentifierEntryDto
+from .file_identifier_dto import RegistryFileDto, RegistryFileEntryDto
 
 logger = logging.getLogger(__name__)
+
+# ------------------------------------------------------------------
+# Reusable Adapters (Compiled once at module import)
+# ------------------------------------------------------------------
+RAW_DICT_ADAPTER: TypeAdapter[dict[str, dict]] = TypeAdapter(dict[str, dict])
+KEY_ADAPTER: TypeAdapter[AssetNameDto] = TypeAdapter(AssetNameDto)
 
 
 class InFileIdentifierRegistry(IdentifierRegistryPort):
     """
-    Storage of financial identifiers in JSON file.
+    Storage of financial static identifiers in JSON file.
     """
 
-    def __init__(self, file_path: str):
-        self._file_path = file_path
+    def __init__(self, file_path: pathlib.Path | str):
+        if isinstance(file_path, str):
+            self._file_path = pathlib.Path(file_path)
+        else:
+            self._file_path = file_path
 
     def load(self) -> FinancialIdentifiers:
         """
-        Initialize FinancailIdentifiers from JSON file.
+        Initialize FinancailIdentifiers from a JSON file.
 
-        Validation of data using IdentifierEntryDto
+        Validation of data using RegistryFileDto, invalid entries are skipped
         """
+        logger.info(f"Load static data from JSON file: {str(self._file_path)}")
 
-        logger.info("Load static data from JSON " + self._file_path)
+        entries_dto = self._load_from_file()
+        return self._dto_to_domain(entries_dto)
 
-        data_json: dict[str, Any] = self._load_from_file()
-        entries_dto = self._validate_entries(data_json)
-        return self._to_domain(entries_dto)
-
-    def update_registry(self, pending_update: list[PendingIdentifierEntryUpdate]) -> tuple[str | None, str | None]:
+    def update_registry(self, pendings: list[PendingIdentifierEntryUpdate]) -> tuple[str | None, str | None]:
         """
         Combine pending updates with previous data.
 
         Backup the previous registry file with an incremented suffix and rewrite the
-        current registry file with merged content.
+        current registry with merged content.
 
         return: string of updated ressource and backup ressource (file path for File)
         """
-        file_path = pathlib.Path(self._file_path)
+        # load validated data
+        data_dto = self._load_from_file()
 
-        data_json = self._load_from_file()
+        for pending_entry in pendings:
+            assert pending_entry.name is not None
+            data_dto[pending_entry.name] = self._entry_to_dto(pending_entry.merged)
 
-        for pending_entry in pending_update:
-            data_json[pending_entry.name] = self._entry_to_dict(pending_entry.merged)
+        backup_path = self._backup_file(self._file_path)
+        self._file_path.rename(backup_path)
 
-        backup_path = self._backup_file(file_path)
-        file_path.rename(backup_path)
+        try:
+            json_bytes = RegistryFileDto.dump_json(data_dto, indent=2, exclude_none=True)
+            self._file_path.write_bytes(json_bytes)
 
-        with open(file_path, "w") as f:
-            json.dump(data_json, f, indent=2)
+        # a priori PydanticSerializationError
+        except Exception as ex:
+            logger.error(f"Dump_json or write_bytes with file_path {self._file_path} : {ex}")
+            raise IdentifierRegistryError(f"Writing JSON to registry {self._file_path}: {ex}")
 
-        logger.info(f"file updated: {file_path}")
+        logger.info(f"file updated: {self._file_path}")
         logger.info(f"created backup file: {backup_path}")
-        return str(file_path), str(backup_path)
+        return str(self._file_path), str(backup_path)
 
-    def _load_from_file(self) -> dict[str, Any]:
-
+    def _load_from_file(self) -> dict[AssetNameDto, RegistryFileEntryDto]:
+        """
+        Parses JSON fast, skips invalid entries, and returns all valid ones
+        """
         if not pathlib.Path(self._file_path).exists():
-            raise IdentifierRegistryFileNotExistingError("file not existing: " + self._file_path)
+            raise IdentifierRegistryFileNotExistingError("file not existing: " + str(self._file_path))
 
-        with open(self._file_path, "r") as f:
+        try:
+            # validate JSON format, fast still avoiding json.load()
+            raw_data = RAW_DICT_ADAPTER.validate_json(self._file_path.read_bytes())
+        except ValidationError as ex:
+            logger.error(f"Invalid JSON format: {ex}")
+            raise IdentifierRegistryError("Invalid JSON format: " + str(self._file_path))
+
+        valid_entries: dict[AssetNameDto, RegistryFileEntryDto] = {}
+
+        # Validate item-by-item, only discard invalid entries
+        for raw_key, raw_entry in raw_data.items():
             try:
-                data_json: dict[str, Any] = json.load(f)
-            except json.decoder.JSONDecodeError:
-                raise IdentifierRegistryError("Invalid JSON format: " + self._file_path)
+                key = KEY_ADAPTER.validate_python(raw_key)
+                entry = RegistryFileEntryDto.model_validate(raw_entry)
+                valid_entries[key] = entry
 
-        return data_json
+            except ValidationError as err:
+                # pretty logging, may save for later print to the user, use helper method
+                first_error = err.errors()[0]
+                error_msg = first_error.get("msg", "Unknown error")
+                error_type = first_error.get("type", "unknown")
+                error_loc = " -> ".join(str(loc) for loc in first_error.get("loc", ()))
+                logger.warning(
+                    f"Skip invalid entry '{raw_key}': '{raw_entry}'."
+                    f"Error in '{error_loc}': {error_msg} (type: {error_type})"
+                )
 
-    def _validate_entries(self, data_json: dict) -> list[IdentifierEntryDto]:
-        """Validation of every entry from input data"""
+        return valid_entries
 
-        entries_dto = []
-        for name, item in data_json.items():
-            try:
-                entry_dto = IdentifierEntryDto.model_validate({"name": name, **item})
-                entries_dto.append(entry_dto)
+    def _dto_to_domain(self, entries_dto: dict[AssetNameDto, RegistryFileEntryDto]) -> FinancialIdentifiers:
+        """
+        Initialize a FinancialIdentiers domain model from validated entries
+        """
 
-            except ValidationError as e:
-                logger.warning(f"discard entry: name = {name}, item = {item}")
-                logger.warning(f"validation failed for registry data: {e}")
+        fin_id: FinancialIdentifiers = FinancialIdentifiers()
 
-            except Exception as exc:
-                logger.error(f"unexpected error occurred: {str(exc)}")
-                raise RuntimeError(f"unexpected error occurred: {str(exc)}") from exc
+        for name, entry_dto in entries_dto.items():
+            # all entries have been validated by DTO, cannot raise error
+            entry = FinancialIdentifierEntry(
+                entry_dto.yfTicker, asset_type=entry_dto.assetType, currency=entry_dto.currency, isin=entry_dto.isin
+            )
+            fin_id.add_entry(name, entry)
 
-        return entries_dto
+        return fin_id
+
+    def _entry_to_dto(self, entry: FinancialIdentifierEntry) -> RegistryFileEntryDto:
+        """Create Dto from domain models. Make dump easier, input are valid"""
+
+        return RegistryFileEntryDto(
+            yfTicker=entry.yf_ticker, assetType=entry.asset_type, currency=entry.currency, isin=entry.isin
+        )
 
     def _backup_file(self, file_path: pathlib.Path) -> pathlib.Path:
         """Return a backup file path using an incremented suffix."""
@@ -109,29 +148,3 @@ class InFileIdentifierRegistry(IdentifierRegistryPort):
             if not candidate.exists():
                 return candidate
             candidate_index += 1
-
-    # here or Dto ?
-    def _entry_to_dict(self, entry: FinancialIdentifierEntry) -> dict[str, str | None]:
-        """Serialize a FinancialIdentifierEntry for registry storage."""
-        return {
-            "yfTicker": entry.yf_ticker,
-            "asset_type": entry.asset_type.value,
-            "currency": entry.currency,
-            "isin": str(entry.isin) if entry.isin is not None else None,
-        }
-
-    def _to_domain(self, entries_dto: list[IdentifierEntryDto]) -> FinancialIdentifiers:
-        """
-        Initialize a FinancialIdentiers domain model from validated entries
-        """
-
-        fin_id: FinancialIdentifiers = FinancialIdentifiers()
-
-        for entry_dto in entries_dto:
-            # all entries have been validated in DTO, cannot raise error
-            entry = FinancialIdentifierEntry(
-                entry_dto.yfTicker, asset_type=entry_dto.asset_type, currency=entry_dto.currency, isin=entry_dto.isin
-            )
-            fin_id.add_entry(entry_dto.name, entry)
-
-        return fin_id

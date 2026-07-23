@@ -21,6 +21,7 @@ from yfinance_tools.app.yf_cli import app
 runner = CliRunner()
 
 
+# apply to all tests in this file
 # seems best approach, it is thoses tests which mess-up the logging
 @pytest.fixture(autouse=True)
 def deep_clean_logging_teardown():

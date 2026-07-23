@@ -74,7 +74,7 @@ select = ["E", "F", "I"]
 #python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
-disallow_untyped_defs = true  # Requires you to type-hint your functions
+disallow_untyped_defs = true  # Requires to type-hint all functions
 check_untyped_defs = true
 
 # This targets the 'tests' directory/package specifically

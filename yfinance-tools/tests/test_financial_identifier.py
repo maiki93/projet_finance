@@ -90,7 +90,7 @@ def test_pending_update_with_new_data(financial_identifier_factory) -> None:
 
 
 def test_pending_update_with_same_data(financial_identifier_factory) -> None:
-    data = {"apple": {"yfTicker": "APPL", "asset_type": "EQUITY"}}
+    data = {"apple": {"yfTicker": "APPL", "assetType": "EQUITY"}}
     fin_id: FinancialIdentifiers = financial_identifier_factory(data)
 
     # exactly same data
@@ -128,7 +128,7 @@ def test_pending_rejected_because_less_data(financial_identifier_factory) -> Non
 
 def test_pending_rejected_because_lost_asset_type(financial_identifier_factory) -> None:
 
-    data = {"apple": {"yfTicker": "APPL", "asset_type": "EQUITY"}}
+    data = {"apple": {"yfTicker": "APPL", "assetType": "EQUITY"}}
     fin_id = financial_identifier_factory(data)
 
     new_data: IdentifierEntryDict = {"apple": FinancialIdentifierEntry("APPL")}
@@ -140,7 +140,7 @@ def test_pending_rejected_because_lost_asset_type(financial_identifier_factory) 
 
 def test_pending_merged_with_original_type(financial_identifier_factory) -> None:
 
-    data = {"apple": {"yfTicker": "APPL", "asset_type": "EQUITY"}}
+    data = {"apple": {"yfTicker": "APPL", "assetType": "EQUITY"}}
     fin_id = financial_identifier_factory(data)
 
     # original asset_type was present in original

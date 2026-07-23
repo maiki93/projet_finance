@@ -10,6 +10,7 @@ test implementation of InFileIdentifierRegistry:
 
 import logging
 import os
+import pathlib
 import re
 from pathlib import Path
 
@@ -18,9 +19,14 @@ import pytest
 import tests.utils as utils
 from tests.conftest import NB_ITEMS_TEMPLATE_REGISTRY_DATA
 from yfinance_tools.adapters import InFileIdentifierRegistry
-from yfinance_tools.domain import ISIN, AssetType, FinancialIdentifierEntry, FinancialIdentifiers
+from yfinance_tools.domain import (
+    ISIN,
+    AssetType,
+    FinancialIdentifierEntry,
+    FinancialIdentifiers,
+    PendingIdentifierEntryUpdate,
+)
 from yfinance_tools.domain.exceptions import IdentifierRegistryError, IdentifierRegistryFileNotExistingError
-from yfinance_tools.domain.financial_identifier_entry import PendingIdentifierEntryUpdate
 
 
 def test_load_identifier_from_file(tmp_path: Path, template_registry_data) -> None:
@@ -40,6 +46,31 @@ def test_load_identifier_from_file(tmp_path: Path, template_registry_data) -> No
     assert fin_id.find("cac40").currency == "EUR"
     assert fin_id.find("eurusd").asset_type == "FOREX"
     assert fin_id.find("natixis_horizon_40_44").isin == "FR0011461276"
+
+
+def test_load_partially_valid_file(caplog, tmp_path: Path) -> None:
+    caplog.set_level(logging.WARNING)
+
+    # valid JSON, but missing required yfTicker and asset name too short
+    data = {
+        "apple": {},
+        "cac40": {"yfTicker": "^FCHI", "isin": "FR0003500008", "assetType": "INDEX"},
+        "e": {"yfTicker": "EURUSD=X"},
+    }
+    json_file = utils.create_file_with_content(tmp_path, "staticids.json", data)
+
+    registry = InFileIdentifierRegistry(json_file)
+
+    fin_id: FinancialIdentifiers = registry.load()
+
+    assert len(fin_id) == 1
+    assert ["cac40"] == fin_id.get_entries()
+
+    # test both my code and pydantic log output
+    assert "Skip invalid entry 'apple'" in caplog.text
+    assert "'yfTicker': Field required" in caplog.text
+    assert "Skip invalid entry 'e'" in caplog.text
+    assert "String should have at least 3 characters" in caplog.text
 
 
 def test_load_invalid_json_file(tmp_path: Path) -> None:
@@ -68,8 +99,8 @@ def test_update_registry(caplog, tmp_path: Path, template_registry_data: dict) -
     caplog.set_level(logging.INFO)
 
     data_origin = {
-        "apple": {"yfTicker": "APPL"},
-        "cac40": {"yfTicker": "^FCHI", "isin": "FR0003500008", "asset_type": "INDEX"},
+        "apple": {"yfTicker": "AAPL"},
+        "cac40": {"yfTicker": "^FCHI", "isin": "FR0003500008", "assetType": "INDEX"},
         "eurusd": {"yfTicker": "EURUSD=X"},
     }
 
@@ -85,8 +116,8 @@ def test_update_registry(caplog, tmp_path: Path, template_registry_data: dict) -
     pendings = [
         PendingIdentifierEntryUpdate(
             "apple",
-            incoming=FinancialIdentifierEntry("APPL", AssetType.EQUITY, currency="USD", isin=ISIN("US0378331005")),
-            merged=FinancialIdentifierEntry("APPL", AssetType.EQUITY, currency="USD", isin=ISIN("US0378331005")),
+            incoming=FinancialIdentifierEntry("AAPL", AssetType.EQUITY, currency="USD", isin=ISIN("US0378331005")),
+            merged=FinancialIdentifierEntry("AAPL", AssetType.EQUITY, currency="USD", isin=ISIN("US0378331005")),
             original=fin_id_origin.find("apple"),
         ),
         PendingIdentifierEntryUpdate(
@@ -105,10 +136,38 @@ def test_update_registry(caplog, tmp_path: Path, template_registry_data: dict) -
 
     new_file, backup_file = registry.update_registry(pendings)
 
+    assert new_file is not None
     assert new_file == os.path.join(tmp_path, "static_ids.json")
     assert backup_file == os.path.join(tmp_path, "static_ids2.json")
 
-    # TODO test content, it is rather a serialization test
+    #
+    # file content
+    #
+    json_string = pathlib.Path(new_file).read_text(encoding="utf-8")
+    assert (
+        json_string
+        == """{
+  "apple": {
+    "yfTicker": "AAPL",
+    "assetType": "EQUITY",
+    "currency": "USD",
+    "isin": "US0378331005"
+  },
+  "cac40": {
+    "yfTicker": "^FCHI",
+    "assetType": "INDEX",
+    "isin": "FR0003500008"
+  },
+  "eurusd": {
+    "yfTicker": "EURUSD=X",
+    "assetType": "FOREX"
+  },
+  "new": {
+    "yfTicker": "NEW",
+    "assetType": "DIGITAL_ASSET"
+  }
+}"""
+    )
 
     #
     # test log
