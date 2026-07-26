@@ -17,8 +17,7 @@ from .utils import fid_entry_from_dict
 NB_ITEMS_TEMPLATE_REGISTRY_DATA = 6
 
 
-# TODO Need to return an immutable dict ? not yet (read-only for the moment)
-# scope seesion, shared across all tests
+# If modified (add an invalid entry) for tests MUST copy this template (easy to forget), or take out scope
 @fixture(scope="session")
 def template_registry_data() -> dict:
     return {

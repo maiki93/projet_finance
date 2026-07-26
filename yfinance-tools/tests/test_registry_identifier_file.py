@@ -22,11 +22,13 @@ from yfinance_tools.adapters import InFileIdentifierRegistry
 from yfinance_tools.domain import (
     ISIN,
     AssetType,
+    FilterAssetBuilder,
     FinancialIdentifierEntry,
     FinancialIdentifiers,
     PendingIdentifierEntryUpdate,
 )
 from yfinance_tools.domain.exceptions import IdentifierRegistryError, IdentifierRegistryFileNotExistingError
+from yfinance_tools.domain.filter_asset import FilterAsset
 
 
 def test_load_identifier_from_file(tmp_path: Path, template_registry_data) -> None:
@@ -38,7 +40,7 @@ def test_load_identifier_from_file(tmp_path: Path, template_registry_data) -> No
     registry = InFileIdentifierRegistry(str(json_file))
 
     # create domain object from file
-    fin_id: FinancialIdentifiers = registry.load()
+    fin_id: FinancialIdentifiers = registry.load(FilterAsset())
 
     assert len(fin_id) == NB_ITEMS_TEMPLATE_REGISTRY_DATA
 
@@ -61,7 +63,7 @@ def test_load_partially_valid_file(caplog, tmp_path: Path) -> None:
 
     registry = InFileIdentifierRegistry(json_file)
 
-    fin_id: FinancialIdentifiers = registry.load()
+    fin_id: FinancialIdentifiers = registry.load(FilterAsset())
 
     assert len(fin_id) == 1
     assert ["cac40"] == fin_id.get_entries()
@@ -73,6 +75,24 @@ def test_load_partially_valid_file(caplog, tmp_path: Path) -> None:
     assert "String should have at least 3 characters" in caplog.text
 
 
+@pytest.mark.parametrize(
+    "name, type, expected", [(None, "EQUITY", 1), ("eurusd", None, 1), (None, None, 6), ("bitcoin", "EQUITY", 2)]
+)
+def test_load_with_selector(tmp_path: Path, template_registry_data, name, type, expected) -> None:
+
+    json_file = utils.create_file_with_content(tmp_path, "static_ids.json", template_registry_data)
+
+    # initialize registry, no check
+    registry = InFileIdentifierRegistry(str(json_file))
+
+    selector = FilterAssetBuilder().with_name(name).with_type(type).build()
+
+    # create domain object from file
+    fin_id: FinancialIdentifiers = registry.load(selector=selector)
+
+    assert len(fin_id) == expected
+
+
 def test_load_invalid_json_file(tmp_path: Path) -> None:
 
     json_file = utils.create_file_with_content(tmp_path, "invalid.json", "{]}")
@@ -80,7 +100,7 @@ def test_load_invalid_json_file(tmp_path: Path) -> None:
     registry = InFileIdentifierRegistry(str(json_file))
 
     with pytest.raises(IdentifierRegistryError, match="Invalid JSON format"):
-        registry.load()
+        registry.load(FilterAsset())
 
 
 def test_load_file_do_not_exist(tmp_path: Path) -> None:
@@ -90,7 +110,7 @@ def test_load_file_do_not_exist(tmp_path: Path) -> None:
 
     # excinfo, alternative to match
     with pytest.raises(IdentifierRegistryFileNotExistingError) as excinfo:
-        registry.load()
+        registry.load(FilterAsset())
     # file path is reported in error message
     assert "static_ids.json" in str(excinfo)
 
@@ -109,7 +129,7 @@ def test_update_registry(caplog, tmp_path: Path, template_registry_data: dict) -
     # initialize registry
     registry = InFileIdentifierRegistry(str(json_file))
 
-    fin_id_origin = registry.load()
+    fin_id_origin = registry.load(FilterAsset())
 
     assert len(fin_id_origin) == 3
 

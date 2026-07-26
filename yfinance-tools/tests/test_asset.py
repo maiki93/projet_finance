@@ -6,7 +6,9 @@ Domain core layer
 
 import pytest
 
+from tests.utils import fid_entry_from_dict_or_none
 from yfinance_tools.domain import ISIN, Asset, AssetType, FinancialIdentifierEntry
+from yfinance_tools.domain.filter_asset import FilterAssetBuilder
 
 
 def test_asset_yfticker_only_required() -> None:
@@ -70,3 +72,23 @@ def test_to_json() -> None:
     str_json2 = asset2.to_json()
 
     assert str_json2 == expected_json_str2
+
+
+@pytest.mark.parametrize(
+    "name, type, expected", [(None, "EQUITY", 1), ("eurusd", None, 1), (None, None, 6), ("bitcoin", "EQUITY", 2)]
+)
+def test_filter_asset(financial_identifier_factory, template_registry_data, name, type, expected) -> None:
+
+    fin_id = financial_identifier_factory(template_registry_data)
+
+    filter = FilterAssetBuilder().with_name(name).with_type(type).build()
+
+    fin_id = {
+        name: fid_entry
+        for name, entry in template_registry_data.items()
+        if (fid_entry := filter(name, fid_entry_from_dict_or_none(entry))) is not None
+    }
+
+    assert len(fin_id) == expected
+    if name:
+        assert name in fin_id

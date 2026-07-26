@@ -23,15 +23,25 @@ def create_file_with_content(tmp_path: Path, filename: str, content: str | dict 
     return tmp_file
 
 
+def fid_entry_from_dict_or_none(data: dict[str, str]):
+    """In case of function composition, fast validation or return None"""
+    try:
+        return FinancialIdentifierEntry(
+            yf_ticker=data.get("yfTicker", "TOTO"),
+            asset_type=AssetType[data.get("assetType", "UNDEFINED")],
+            currency=data.get("currency", None),
+            isin=ISIN(data["isin"].upper()) if data.get("isin") else None,
+        )
+    except KeyError, ValueError:
+        return None
+
+
 def fid_entry_from_dict(data: dict[str, str]) -> FinancialIdentifierEntry:
     """
     Convenient helper to create instance FinancialIdentifierEntry for tests.
 
     Skip normal validation by DTO, so need to keep up to date.
     """
-    # copy_data = dict() to not change the original
-    # if dict[str, str|None] more steps to perform (maybe usefull anyway)
-
     assert "yfTicker" in data
 
     yf_ticker = data.get("yfTicker")

@@ -1,7 +1,7 @@
 """
 Asset identifiers are static data, they never(rarely) change:
 - yahoo ticker is required for web  with yfinance (partly true, ISIN may work also)
-- AssetType : different capabilities from the asset
+- AssetType : different capabilities from the asset type
 - currency : currency (or points for index, % for rates ...), maybe too specific
 - isin : for some asset_type, not all
 To extend with ?!
@@ -45,7 +45,7 @@ class FinancialIdentifierEntry:
         Merges incoming data with existing. Returns a new instance.
 
         Invalid data from incoming (None, AssetType.UNDEFINED) are discarded
-        TODO: replacement of valid data should be logged / informed to user
+        TODO: replacement of valid data should be logged / informed to user ?
         """
         updates = incoming.get_valid_fields()
         return replace(self, **updates)

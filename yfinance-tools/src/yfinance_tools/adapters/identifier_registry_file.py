@@ -8,7 +8,12 @@ import pathlib
 from pydantic import TypeAdapter, ValidationError
 
 from yfinance_tools.adapters.basic_types_dto import AssetNameDto
-from yfinance_tools.domain import FinancialIdentifierEntry, FinancialIdentifiers, PendingIdentifierEntryUpdate
+from yfinance_tools.domain import (
+    FilterAsset,
+    FinancialIdentifierEntry,
+    FinancialIdentifiers,
+    PendingIdentifierEntryUpdate,
+)
 from yfinance_tools.domain.exceptions import IdentifierRegistryError, IdentifierRegistryFileNotExistingError
 from yfinance_tools.services import IdentifierRegistryPort
 
@@ -34,7 +39,7 @@ class InFileIdentifierRegistry(IdentifierRegistryPort):
         else:
             self._file_path = file_path
 
-    def load(self) -> FinancialIdentifiers:
+    def load(self, selector: FilterAsset) -> FinancialIdentifiers:
         """
         Initialize FinancailIdentifiers from a JSON file.
 
@@ -43,7 +48,7 @@ class InFileIdentifierRegistry(IdentifierRegistryPort):
         logger.info(f"Load static data from JSON file: {str(self._file_path)}")
 
         entries_dto = self._load_from_file()
-        return self._dto_to_domain(entries_dto)
+        return self._dto_to_domain(entries_dto, selector)
 
     def update_registry(self, pendings: list[PendingIdentifierEntryUpdate]) -> tuple[str | None, str | None]:
         """
@@ -54,7 +59,7 @@ class InFileIdentifierRegistry(IdentifierRegistryPort):
 
         return: string of updated ressource and backup ressource (file path for File)
         """
-        # load validated data
+        # load all validated data
         data_dto = self._load_from_file()
 
         for pending_entry in pendings:
@@ -113,9 +118,12 @@ class InFileIdentifierRegistry(IdentifierRegistryPort):
 
         return valid_entries
 
-    def _dto_to_domain(self, entries_dto: dict[AssetNameDto, RegistryFileEntryDto]) -> FinancialIdentifiers:
+    def _dto_to_domain(
+        self, entries_dto: dict[AssetNameDto, RegistryFileEntryDto], filter: FilterAsset
+    ) -> FinancialIdentifiers:
         """
         Initialize a FinancialIdentiers domain model from validated entries
+        and if they pass the filter selection
         """
 
         fin_id: FinancialIdentifiers = FinancialIdentifiers()
@@ -125,7 +133,9 @@ class InFileIdentifierRegistry(IdentifierRegistryPort):
             entry = FinancialIdentifierEntry(
                 entry_dto.yfTicker, asset_type=entry_dto.assetType, currency=entry_dto.currency, isin=entry_dto.isin
             )
-            fin_id.add_entry(name, entry)
+
+            if filter(name, entry):
+                fin_id[name] = entry
 
         return fin_id
 

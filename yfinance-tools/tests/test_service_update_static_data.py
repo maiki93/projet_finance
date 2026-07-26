@@ -22,6 +22,7 @@ from yfinance_tools.domain import (
     IdentifierEntryDict,
     PendingIdentifierEntryUpdate,
 )
+from yfinance_tools.domain.filter_asset import FilterAsset
 from yfinance_tools.services import AssetService, YFinancePort
 
 from .utils import fid_entry_from_dict
@@ -62,7 +63,9 @@ def test_get_pending_update(mocker, asset_service_factory) -> None:
     service = asset_service_factory(registry_identifier, mock_yfinance_adapter)
 
     # tested method
-    pendings: list[PendingIdentifierEntryUpdate] = service.get_static_data_pending_update(force_all=False)
+    pendings: list[PendingIdentifierEntryUpdate] = service.get_static_data_pending_update(
+        selector=FilterAsset(), force_all=False
+    )
 
     assert len(pendings) == 3
     assert "cac40" not in {pending.name for pending in pendings}
@@ -82,7 +85,7 @@ def test_get_pendings_missing_yfadapter_dependecy(asset_service_factory):
     service = asset_service_factory(registry_identifier, None)
 
     with pytest.raises(RuntimeError, match="YFinancePort adapter is not initialized"):
-        service.get_static_data_pending_update(force_all=False)
+        service.get_static_data_pending_update(force_all=False, selector=FilterAsset())
 
 
 def create_initial_and_pending_update_for_update_registry() -> tuple[dict, list[PendingIdentifierEntryUpdate]]:
@@ -129,6 +132,9 @@ def test_update_registry(asset_service_factory, caplog) -> None:
     registry_identifier = FakeIdentifierRegistry(original_data)
     service: AssetService = asset_service_factory(registry_identifier, None)
 
+    # load done in previous stage of use case
+    service.load_financial_identifier_from_registry(FilterAsset())
+
     # update fin_id and registry
     filepath, assets = service.update_registry(pendings_update)
 
@@ -137,7 +143,7 @@ def test_update_registry(asset_service_factory, caplog) -> None:
     #
     # check FinancialIdentifier update
     #
-    fin_id = service._fin_id
+    fin_id = service.fin_id
 
     assert fin_id is not None
     assert len(fin_id) == 4

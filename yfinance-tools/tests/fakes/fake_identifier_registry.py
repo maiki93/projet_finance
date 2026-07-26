@@ -10,14 +10,14 @@ For testing the service layer
 import logging
 from typing import Any
 
-# no use of RegistryFileDto ?? more close of the real implementation, to see with extension DB
+from tests.utils import fid_entry_from_dict_or_none
 from yfinance_tools.adapters.file_identifier_dto import RegistryFileEntryDto
 from yfinance_tools.domain import (
-    AssetType,
     FinancialIdentifierEntry,
     FinancialIdentifiers,
     PendingIdentifierEntryUpdate,
 )
+from yfinance_tools.domain.filter_asset import FilterAsset
 from yfinance_tools.services import IdentifierRegistryPort
 
 logger = logging.getLogger(__name__)
@@ -41,21 +41,18 @@ class FakeIdentifierRegistry(IdentifierRegistryPort):
     def fake_static_identifiers(self) -> dict[str, dict[str, Any]]:
         return self._static_identifiers
 
-    def load(self) -> FinancialIdentifiers:
+    def load(self, selector: FilterAsset) -> FinancialIdentifiers:
 
         if self._exception:
             raise self._exception
 
         fin_id = FinancialIdentifiers()
 
-        for name, items in self._static_identifiers.items():
-            entry = FinancialIdentifierEntry(
-                items.get("yfTicker", "-"),  # not possible
-                asset_type=items.get("assetType", AssetType.UNDEFINED),
-                currency=items.get("currency", None),
-                isin=items.get("isin", None),
-            )
-            fin_id.add_entry(name, entry)
+        # validation and filtering with selector
+        for name, items in self.fake_static_identifiers.items():
+            fid_entry = selector(name, fid_entry_from_dict_or_none(items))
+            if fid_entry:
+                fin_id[name] = fid_entry
 
         return fin_id
 

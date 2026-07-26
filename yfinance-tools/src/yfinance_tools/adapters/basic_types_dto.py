@@ -96,13 +96,3 @@ IsinDto = Annotated[
     BeforeValidator(parse_isin),
     PlainSerializer(str, return_type=str, when_used="unless-none"),
 ]
-
-
-# """More specific IsinDto, ValidationError is throw if the format is invalid"""
-# StrictIsinDto = Annotated[IsinDto, AfterValidator(reject_invalid_isin)]
-# StrictIsinDto = Annotated[
-#     ISIN | None,  # <--- IDEs / Pylance / Mypy now see ONLY `ISIN | None`!
-#     BeforeValidator(parse_isin),
-#     AfterValidator(reject_invalid_isin),
-#     PlainSerializer(str, return_type=str, when_used="unless-none"),
-# ]

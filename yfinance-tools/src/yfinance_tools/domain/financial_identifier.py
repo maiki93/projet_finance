@@ -4,7 +4,7 @@ Store identifier entries
 
 import copy
 from dataclasses import dataclass, field
-from typing import TypeAlias
+from typing import Iterator, TypeAlias
 
 from .exceptions import IdentifierError
 from .financial_identifier_entry import FinancialIdentifierEntry, PendingIdentifierEntryUpdate
@@ -14,25 +14,27 @@ IdentifierEntryDict: TypeAlias = dict[str, FinancialIdentifierEntry]
 
 
 # no real advantage to use dataclass here, it is a dictionnary or a list (but must include name)
+# StaticIdentifiers may be a better name
 @dataclass
 class FinancialIdentifiers:
     """
     Container of asset identifier entries.
 
-    - allow filtering by name / isin, asset type (TODO),
-    - open-close state with market ?
+    - allow filtering by name and asset type
+    - open-close state with market ? TODO
     """
 
-    # with init=False: not present in constructor
     _entries: IdentifierEntryDict = field(init=False, default_factory=IdentifierEntryDict)
 
-    # TODO IdentifierEntryDict
+    # TODO replaced by setter, or keep with better name
     def add_entry(self, name: str, entry: FinancialIdentifierEntry) -> None:
         self._entries[name] = entry
 
+    # TODO replaced by Iterator, or keep for better name
     def get_entries(self) -> list[str]:
         return list(self._entries.keys())
 
+    # TODO replaced by getter, or keep for better name
     def find(self, name: str) -> FinancialIdentifierEntry:
         if name not in self._entries:
             raise IdentifierError(f"Asset name not found: {name}")
@@ -69,11 +71,30 @@ class FinancialIdentifiers:
 
         return pendings
 
+    # context should be clear enought to know we are updating the Static Data
+    def update_entry(self, name: str, new_entry: FinancialIdentifierEntry) -> None:
+        """Add new or replace previous entry"""
+        self._entries[name] = new_entry
+
+    #
+    # Dictionary interface
+    #
+
+    # size: len(dict)
     def __len__(self) -> int:
         return len(self._entries)
 
-    def update_entry(self, name: str, new_entry: FinancialIdentifierEntry) -> None:
-        """Add new or replace previous entry"""
+    # Iteration: for key in dict
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._entries)
 
-        # but as CLI forbids human validation
-        self._entries[name] = new_entry
+    # Access: obj[key] <=> find()
+    def __getitem__(self, name: str) -> FinancialIdentifierEntry:
+        if name not in self._entries:
+            raise IdentifierError(f"Asset name not found: {name}")
+
+        return self._entries[name]
+
+    # Assignment: obj[key] = value
+    def __setitem__(self, name: str, value: FinancialIdentifierEntry) -> None:
+        self._entries[name] = value

@@ -22,7 +22,7 @@ runner = CliRunner()
 
 
 # apply to all tests in this file
-# seems best approach, it is thoses tests which mess-up the logging
+# seems best approach, it is thoses tests which mess-up the logging configuration
 @pytest.fixture(autouse=True)
 def deep_clean_logging_teardown():
     # Let the CLI bootstrap and test run normally
@@ -102,6 +102,16 @@ def test_list_assets(tmp_path, template_registry_data) -> None:
     assert f"Assets ({NB_ITEMS_TEMPLATE_REGISTRY_DATA})" in result.stdout
 
 
+def test_list_assets_with_selector(tmp_path, template_registry_data) -> None:
+
+    registry_file = utils.create_file_with_content(tmp_path, "registry.json", template_registry_data)
+
+    result = runner.invoke(app, ["--type", "equity", "--registry-filename", str(registry_file), "list-assets"])
+
+    assert result.exit_code == 0
+    assert "Assets (1)" in result.stdout
+
+
 def test_list_assets_json(tmp_path, template_registry_data) -> None:
 
     registry_file = utils.create_file_with_content(tmp_path, "registry.json", template_registry_data)
@@ -130,16 +140,33 @@ def test_verbose_in_stderr(tmp_path, template_registry_data) -> None:
 
 @pytest.mark.webreq
 def test_update_static_data(tmp_path, template_registry_data) -> None:
+
     registry_file = utils.create_file_with_content(tmp_path, "registry.json", template_registry_data)
 
-    # Simulate user typing 'Y' and pressing Enter
+    # Simulate user typing 'y' and pressing Enter
     user_confirmation = "y\n" * NB_ITEMS_TEMPLATE_REGISTRY_DATA
     result = runner.invoke(
         app, ["--json", "--registry-filename", str(registry_file), "update-static-data"], input=user_confirmation
     )
 
     assert result.exit_code == 0
-    # assert "update done, file is saved: (PosixPath('static_assets.json')" in result.stdout
+    assert "update done:" in result.stdout
+
+
+@pytest.mark.webreq
+def test_update_static_data_with_selector(tmp_path, template_registry_data) -> None:
+
+    registry_file = utils.create_file_with_content(tmp_path, "registry.json", template_registry_data)
+
+    # Simulate user typing 'Y' and pressing Enter
+    user_confirmation = "y\n" * 1
+    result = runner.invoke(
+        app,
+        ["--json", "--type", "forex", "--registry-filename", str(registry_file), "update-static-data"],
+        input=user_confirmation,
+    )
+
+    assert result.exit_code == 0
     assert "update done:" in result.stdout
 
 
