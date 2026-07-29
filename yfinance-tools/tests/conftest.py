@@ -88,7 +88,8 @@ def _financial_identifiers_factory():
 
         for name, items in static_identifiers.items():
             entry = fid_entry_from_dict(items)
-            fin_id.add_entry(name, entry)
+            # fin_id.add_entry(name, entry)
+            fin_id[name] = entry
 
         return fin_id
 

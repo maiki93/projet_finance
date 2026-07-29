@@ -1,5 +1,5 @@
 """
-Selection of assets from the registry
+Store user criteria for the selection of assets from the registry
 """
 
 from dataclasses import dataclass, field
@@ -9,7 +9,7 @@ from .financial_models import AssetType
 
 
 @dataclass(frozen=True, kw_only=True, init=True)
-class FilterAsset:
+class SelectorAsset:
     """
     Allow filtering of assets
 
@@ -27,21 +27,18 @@ class FilterAsset:
             # Bypass the frozen lock
             object.__setattr__(self, "is_active", False)
 
-    def __call__(self, name: str, entry: FinancialIdentifierEntry | None) -> FinancialIdentifierEntry | None:
-        """
-        Apply the filtering in entry
-        return None, to allow functional composition
-        """
+    def as_filter(self, name: str, entry: FinancialIdentifierEntry | None) -> bool:
+        """Act as a filter, returning boolean value if match"""
         if entry is None:
-            return None
+            return False
 
         if not self.is_active:
-            return entry
+            return True
 
         if (self.name and self.name == name) or (self.type and self.type == entry.asset_type):
-            return entry
+            return True
 
-        return None
+        return False
 
     def __str__(self) -> str:
         "Pretty output"
@@ -51,24 +48,24 @@ class FilterAsset:
         return msg
 
 
-class FilterAssetBuilder:
+class SelectorAssetBuilder:
     """Buider API to construct FilterAsset"""
 
     def __init__(self):
         self.name: str | None = None
         self.type: str | None = None
 
-    def with_type(self, type: str | None) -> FilterAssetBuilder:
+    def with_type(self, type: str | None) -> SelectorAssetBuilder:
         if type is not None:
             self.type = type.upper()
         return self
 
-    def with_name(self, name: str | None) -> FilterAssetBuilder:
+    def with_name(self, name: str | None) -> SelectorAssetBuilder:
         if name is not None:
             self.name = name
         return self
 
-    def build(self) -> FilterAsset:
+    def build(self) -> SelectorAsset:
         """
         Build and return the FilterAsset instance
 
@@ -79,4 +76,4 @@ class FilterAssetBuilder:
         else:
             asset_type = None
 
-        return FilterAsset(name=self.name, type=asset_type)
+        return SelectorAsset(name=self.name, type=asset_type)

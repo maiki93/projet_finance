@@ -80,13 +80,17 @@ class FinancialIdentifiers:
     # Dictionary interface
     #
 
-    # size: len(dict)
     def __len__(self) -> int:
         return len(self._entries)
 
-    # Iteration: for key in dict
     def __iter__(self) -> Iterator[str]:
+        """Yields key values"""
+        print("call fin_id.__iter__")
         return iter(self._entries)
+
+    def items(self) -> Iterator[tuple[str, FinancialIdentifierEntry]]:
+        """Yields (key, value) pairs"""
+        return iter(self._entries.items())
 
     # Access: obj[key] <=> find()
     def __getitem__(self, name: str) -> FinancialIdentifierEntry:

@@ -1,14 +1,13 @@
 """
 Domain core layer
 
-- pure business logic, at core, no depenendencies (mock if more complex behavior)
+- pure business logic, no depenendencies (mock if more complex behavior)
 """
 
 import pytest
 
 from tests.utils import fid_entry_from_dict_or_none
-from yfinance_tools.domain import ISIN, Asset, AssetType, FinancialIdentifierEntry
-from yfinance_tools.domain.filter_asset import FilterAssetBuilder
+from yfinance_tools.domain import ISIN, Asset, AssetType, FinancialIdentifierEntry, SelectorAssetBuilder
 
 
 def test_asset_yfticker_only_required() -> None:
@@ -77,16 +76,16 @@ def test_to_json() -> None:
 @pytest.mark.parametrize(
     "name, type, expected", [(None, "EQUITY", 1), ("eurusd", None, 1), (None, None, 6), ("bitcoin", "EQUITY", 2)]
 )
-def test_filter_asset(financial_identifier_factory, template_registry_data, name, type, expected) -> None:
+def test_selector_asset(financial_identifier_factory, template_registry_data, name, type, expected) -> None:
 
     fin_id = financial_identifier_factory(template_registry_data)
 
-    filter = FilterAssetBuilder().with_name(name).with_type(type).build()
+    selector = SelectorAssetBuilder().with_name(name).with_type(type).build()
 
     fin_id = {
         name: fid_entry
         for name, entry in template_registry_data.items()
-        if (fid_entry := filter(name, fid_entry_from_dict_or_none(entry))) is not None
+        if (fid_entry := selector.as_filter(name, fid_entry_from_dict_or_none(entry))) is True
     }
 
     assert len(fin_id) == expected

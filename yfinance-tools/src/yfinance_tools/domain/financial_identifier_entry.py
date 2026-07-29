@@ -26,6 +26,7 @@ class FinancialIdentifierEntry:
     Static data associated to an asset:
     - yahoo ticker (required)
     - asset_type : AssetType( UNDEFINED by default)
+    - currency: str (None by default)
     - isin: ISIN | None (optional, not all assets have an ISIN)
     """
 

@@ -11,13 +11,20 @@ from rich.console import Console
 from rich.table import Table
 
 from yfinance_tools.bootstrap import bootstrap_app
-from yfinance_tools.domain import Asset, FilterAssetBuilder, PendingIdentifierEntryUpdate
+from yfinance_tools.domain import Asset, PendingIdentifierEntryUpdate, SelectorAssetBuilder
 from yfinance_tools.domain.exceptions import YFinanceToolsError
 from yfinance_tools.services.asset_service import AssetService
 
 logger = logging.getLogger(__name__)
 
-app = typer.Typer(help="CLI Tool to manage financial assets", rich_markup_mode="rich")
+app = typer.Typer(
+    help="""CLI Tool to manage financial assets\n
+    Global options for asset selection:
+    Use --name and --type to filter assets (OR logic applied). For example:
+    yfinance_cli --name AAPL --type FOREX list-assets
+    """,
+    rich_markup_mode="rich",
+)
 console = Console()
 
 
@@ -51,7 +58,7 @@ def main_callback(
     selector = None
     # must hide, or YFinanceToolsError, must return None
     try:
-        selector = FilterAssetBuilder().with_name(name).with_type(type).build()
+        selector = SelectorAssetBuilder().with_name(name).with_type(type).build()
     except ValueError as ex:
         logger.error(str(ex))
         rprint(f"[red]end program - {ex}[/red]")

@@ -8,9 +8,8 @@ External dependencies on
 
 import logging
 
-from yfinance_tools.domain import Asset, FinancialIdentifiers, PendingIdentifierEntryUpdate
+from yfinance_tools.domain import Asset, FinancialIdentifiers, PendingIdentifierEntryUpdate, SelectorAsset
 from yfinance_tools.domain.exceptions import IdentifierError, YFinanceToolsError
-from yfinance_tools.domain.filter_asset import FilterAsset
 
 from .outbound_ports import IdentifierRegistryPort, YFinancePort
 
@@ -33,7 +32,7 @@ class AssetService:
         # break stateless
         self._financial_identifiers: FinancialIdentifiers | None = None
 
-    def load_financial_identifier_from_registry(self, selector: FilterAsset) -> None:
+    def load_financial_identifier_from_registry(self, selector: SelectorAsset) -> None:
         """
         Load financial identifier from the registry.
         It is stored in AssetService, accessible by property .fin_id
@@ -50,8 +49,7 @@ class AssetService:
         assert self._financial_identifiers is not None
         return self._financial_identifiers
 
-    # no reason to have None for filter (always created) => just a filter which accepts everything
-    def list_assets(self, selector: FilterAsset) -> list[Asset]:
+    def list_assets(self, selector: SelectorAsset) -> list[Asset]:
         """
         Return the list of all Assets present in the identifier registry.
         """
@@ -69,7 +67,7 @@ class AssetService:
 
     def get_static_data_pending_update(
         self,
-        selector: FilterAsset,
+        selector: SelectorAsset,
         force_all: bool,
     ) -> list[PendingIdentifierEntryUpdate]:
         """
@@ -84,7 +82,7 @@ class AssetService:
 
         self.load_financial_identifier_from_registry(selector)
 
-        # fetch data for assets which are incomplete or force for all
+        # fetch data for assets which are incomplete or force for all assets
         candidates = self.fin_id.candidates_for_update(force_all)
         incoming_static_update = self._yfinance.fetch_static_identifiers(candidates)
 
@@ -93,7 +91,6 @@ class AssetService:
 
         return pending_static_update
 
-    # should have more logic here ?? Human validation done before
     def update_registry(self, pending_update: list[PendingIdentifierEntryUpdate]) -> tuple[str, list[Asset]]:
         """
         Update static data after user validation
@@ -129,5 +126,4 @@ class AssetService:
             if not isinstance(entry := self.fin_id.find(name), IdentifierError)
         ]
 
-        # updated is a notification
         return str(updated_resource), assets

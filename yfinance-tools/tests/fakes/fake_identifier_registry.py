@@ -10,14 +10,14 @@ For testing the service layer
 import logging
 from typing import Any
 
-from tests.utils import fid_entry_from_dict_or_none
+from tests.utils import fid_entry_from_dict
 from yfinance_tools.adapters.file_identifier_dto import RegistryFileEntryDto
 from yfinance_tools.domain import (
     FinancialIdentifierEntry,
     FinancialIdentifiers,
     PendingIdentifierEntryUpdate,
+    SelectorAsset,
 )
-from yfinance_tools.domain.filter_asset import FilterAsset
 from yfinance_tools.services import IdentifierRegistryPort
 
 logger = logging.getLogger(__name__)
@@ -41,19 +41,18 @@ class FakeIdentifierRegistry(IdentifierRegistryPort):
     def fake_static_identifiers(self) -> dict[str, dict[str, Any]]:
         return self._static_identifiers
 
-    def load(self, selector: FilterAsset) -> FinancialIdentifiers:
+    def load(self, selector: SelectorAsset) -> FinancialIdentifiers:
 
         if self._exception:
             raise self._exception
 
         fin_id = FinancialIdentifiers()
 
-        # validation and filtering with selector
-        for name, items in self.fake_static_identifiers.items():
-            fid_entry = selector(name, fid_entry_from_dict_or_none(items))
-            if fid_entry:
-                fin_id[name] = fid_entry
+        gen_entry = ((name, fid_entry_from_dict(entry)) for name, entry in self.fake_static_identifiers.items())
+        filtered = filter(lambda n: selector.as_filter(n[0], n[1]), gen_entry)
 
+        for name, entry in filtered:
+            fin_id[name] = entry
         return fin_id
 
     def update_registry(self, pendings: list[PendingIdentifierEntryUpdate]) -> tuple[str | None, str | None]:

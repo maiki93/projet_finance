@@ -4,28 +4,30 @@ Implementation of FinancialIdentifier for retrieval and storage in file (Outboun
 
 import logging
 import pathlib
+from typing import Any
 
 from pydantic import TypeAdapter, ValidationError
 
 from yfinance_tools.adapters.basic_types_dto import AssetNameDto
 from yfinance_tools.domain import (
-    FilterAsset,
     FinancialIdentifierEntry,
     FinancialIdentifiers,
     PendingIdentifierEntryUpdate,
+    SelectorAsset,
 )
 from yfinance_tools.domain.exceptions import IdentifierRegistryError, IdentifierRegistryFileNotExistingError
 from yfinance_tools.services import IdentifierRegistryPort
 
 from .file_identifier_dto import RegistryFileDto, RegistryFileEntryDto
+from .utils import NamedEntry, NamedEntryDto, is_not_none
 
 logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------
 # Reusable Adapters (Compiled once at module import)
 # ------------------------------------------------------------------
-RAW_DICT_ADAPTER: TypeAdapter[dict[str, dict]] = TypeAdapter(dict[str, dict])
-KEY_ADAPTER: TypeAdapter[AssetNameDto] = TypeAdapter(AssetNameDto)
+RAW_DICT_ADAPTER = TypeAdapter(dict[str, dict[str, Any]])
+KEY_ADAPTER = TypeAdapter(AssetNameDto)
 
 
 class InFileIdentifierRegistry(IdentifierRegistryPort):
@@ -39,7 +41,7 @@ class InFileIdentifierRegistry(IdentifierRegistryPort):
         else:
             self._file_path = file_path
 
-    def load(self, selector: FilterAsset) -> FinancialIdentifiers:
+    def load(self, selector: SelectorAsset) -> FinancialIdentifiers:
         """
         Initialize FinancailIdentifiers from a JSON file.
 
@@ -47,8 +49,23 @@ class InFileIdentifierRegistry(IdentifierRegistryPort):
         """
         logger.info(f"Load static data from JSON file: {str(self._file_path)}")
 
-        entries_dto = self._load_from_file()
-        return self._dto_to_domain(entries_dto, selector)
+        raw_json_data = self._load_from_file()
+
+        # full declarative, create a chain of generators
+        gen_raw_entries = ((name, entry) for name, entry in raw_json_data.items())
+        # Validate entries and filter out None values immediately
+        validated_dto = map(self._validate_entries, gen_raw_entries)
+        f_validated_dto = filter(is_not_none, validated_dto)
+        # transform to domain model
+        validated_entry = map(self._dto_to_domain, f_validated_dto)
+        # apply  selector
+        selected_entry = filter(lambda t: self._apply_filtering(selector, t), validated_entry)
+
+        fin_id = FinancialIdentifiers()
+        for name_entry in selected_entry:
+            fin_id[name_entry.name] = name_entry.entry
+
+        return fin_id
 
     def update_registry(self, pendings: list[PendingIdentifierEntryUpdate]) -> tuple[str | None, str | None]:
         """
@@ -57,10 +74,19 @@ class InFileIdentifierRegistry(IdentifierRegistryPort):
         Backup the previous registry file with an incremented suffix and rewrite the
         current registry with merged content.
 
-        return: string of updated ressource and backup ressource (file path for File)
+        return: updated ressource and backup ressource (filepath stirng for files)
         """
-        # load all validated data
-        data_dto = self._load_from_file()
+        # load only valid data
+        raw_data_json = self._load_from_file()
+        # data_dto = self._validate_entries(raw_data_json)
+
+        gen_raw_entries = ((name, entry) for name, entry in raw_data_json.items())
+        # Validate entries and filter out None values immediately
+        validated_dto = map(self._validate_entries, gen_raw_entries)
+        data_dto_it = filter(is_not_none, validated_dto)
+
+        #
+        data_dto = dict(data_dto_it)
 
         for pending_entry in pendings:
             assert pending_entry.name is not None
@@ -82,9 +108,9 @@ class InFileIdentifierRegistry(IdentifierRegistryPort):
         logger.info(f"created backup file: {backup_path}")
         return str(self._file_path), str(backup_path)
 
-    def _load_from_file(self) -> dict[AssetNameDto, RegistryFileEntryDto]:
+    def _load_from_file(self) -> dict[str, dict[str, Any]]:
         """
-        Parses JSON fast, skips invalid entries, and returns all valid ones
+        Parses JSON fast (no loaded in memory), validate only the Json format
         """
         if not pathlib.Path(self._file_path).exists():
             raise IdentifierRegistryFileNotExistingError("file not existing: " + str(self._file_path))
@@ -96,51 +122,54 @@ class InFileIdentifierRegistry(IdentifierRegistryPort):
             logger.error(f"Invalid JSON format: {ex}")
             raise IdentifierRegistryError("Invalid JSON format: " + str(self._file_path))
 
-        valid_entries: dict[AssetNameDto, RegistryFileEntryDto] = {}
+        return raw_data
 
-        # Validate item-by-item, only discard invalid entries
-        for raw_key, raw_entry in raw_data.items():
-            try:
-                key = KEY_ADAPTER.validate_python(raw_key)
-                entry = RegistryFileEntryDto.model_validate(raw_entry)
-                valid_entries[key] = entry
-
-            except ValidationError as err:
-                # pretty logging, may save for later print to the user, use helper method
-                first_error = err.errors()[0]
-                error_msg = first_error.get("msg", "Unknown error")
-                error_type = first_error.get("type", "unknown")
-                error_loc = " -> ".join(str(loc) for loc in first_error.get("loc", ()))
-                logger.warning(
-                    f"Skip invalid entry '{raw_key}': '{raw_entry}'."
-                    f"Error in '{error_loc}': {error_msg} (type: {error_type})"
-                )
-
-        return valid_entries
-
-    def _dto_to_domain(
-        self, entries_dto: dict[AssetNameDto, RegistryFileEntryDto], filter: FilterAsset
-    ) -> FinancialIdentifiers:
+    def _validate_entries(self, tentry: tuple[str, dict[str, Any]]) -> NamedEntryDto | None:
         """
-        Initialize a FinancialIdentiers domain model from validated entries
-        and if they pass the filter selection
+        Validate FinancialIdentifierEntry with DTO
+
+        Log reason and return None if invalid
         """
 
-        fin_id: FinancialIdentifiers = FinancialIdentifiers()
+        raw_key = tentry[0]
+        raw_entry = tentry[1]
+        try:
+            key = KEY_ADAPTER.validate_python(raw_key)
+            entry = RegistryFileEntryDto.model_validate(raw_entry)
+            return NamedEntryDto(key, entry)
 
-        for name, entry_dto in entries_dto.items():
-            # all entries have been validated by DTO, cannot raise error
-            entry = FinancialIdentifierEntry(
-                entry_dto.yfTicker, asset_type=entry_dto.assetType, currency=entry_dto.currency, isin=entry_dto.isin
+        except ValidationError as err:
+            # pretty logging, may save for later print to the user, use helper method
+            first_error = err.errors()[0]
+            error_msg = first_error.get("msg", "Unknown error")
+            error_type = first_error.get("type", "unknown")
+            error_loc = " -> ".join(str(loc) for loc in first_error.get("loc", ()))
+            logger.warning(
+                f"Skip invalid entry '{raw_key}': '{raw_entry}'."
+                f"Error in '{error_loc}': {error_msg} (type: {error_type})"
             )
+            return None
 
-            if filter(name, entry):
-                fin_id[name] = entry
+    @staticmethod
+    def _apply_filtering(selector: SelectorAsset, name_entry: NamedEntry) -> bool:
+        """
+        For file registry, the selector acts as a filter predicate
+        """
+        return selector.as_filter(name_entry.name, name_entry.entry)
 
-        return fin_id
+    def _dto_to_domain(self, named_entry_dto: NamedEntryDto) -> NamedEntry:
+        """
+        Initialize a FinancialIdentierEntry domain model from validated entries
+        """
+
+        entry_dto = named_entry_dto.entry
+        entry = FinancialIdentifierEntry(
+            entry_dto.yfTicker, asset_type=entry_dto.assetType, currency=entry_dto.currency, isin=entry_dto.isin
+        )
+        return NamedEntry(named_entry_dto.name, entry)
 
     def _entry_to_dto(self, entry: FinancialIdentifierEntry) -> RegistryFileEntryDto:
-        """Create Dto from domain models. Make dump easier, input are valid"""
+        """Create Dto from domain models. Make dump easier, input from domain models are valid"""
 
         return RegistryFileEntryDto(
             yfTicker=entry.yf_ticker, assetType=entry.asset_type, currency=entry.currency, isin=entry.isin

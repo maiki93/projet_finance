@@ -22,13 +22,13 @@ from yfinance_tools.adapters import InFileIdentifierRegistry
 from yfinance_tools.domain import (
     ISIN,
     AssetType,
-    FilterAssetBuilder,
     FinancialIdentifierEntry,
     FinancialIdentifiers,
     PendingIdentifierEntryUpdate,
+    SelectorAssetBuilder,
 )
 from yfinance_tools.domain.exceptions import IdentifierRegistryError, IdentifierRegistryFileNotExistingError
-from yfinance_tools.domain.filter_asset import FilterAsset
+from yfinance_tools.domain.selector_asset import SelectorAsset
 
 
 def test_load_identifier_from_file(tmp_path: Path, template_registry_data) -> None:
@@ -40,7 +40,7 @@ def test_load_identifier_from_file(tmp_path: Path, template_registry_data) -> No
     registry = InFileIdentifierRegistry(str(json_file))
 
     # create domain object from file
-    fin_id: FinancialIdentifiers = registry.load(FilterAsset())
+    fin_id: FinancialIdentifiers = registry.load(SelectorAsset())
 
     assert len(fin_id) == NB_ITEMS_TEMPLATE_REGISTRY_DATA
 
@@ -63,7 +63,7 @@ def test_load_partially_valid_file(caplog, tmp_path: Path) -> None:
 
     registry = InFileIdentifierRegistry(json_file)
 
-    fin_id: FinancialIdentifiers = registry.load(FilterAsset())
+    fin_id: FinancialIdentifiers = registry.load(SelectorAsset())
 
     assert len(fin_id) == 1
     assert ["cac40"] == fin_id.get_entries()
@@ -85,7 +85,7 @@ def test_load_with_selector(tmp_path: Path, template_registry_data, name, type, 
     # initialize registry, no check
     registry = InFileIdentifierRegistry(str(json_file))
 
-    selector = FilterAssetBuilder().with_name(name).with_type(type).build()
+    selector = SelectorAssetBuilder().with_name(name).with_type(type).build()
 
     # create domain object from file
     fin_id: FinancialIdentifiers = registry.load(selector=selector)
@@ -100,7 +100,7 @@ def test_load_invalid_json_file(tmp_path: Path) -> None:
     registry = InFileIdentifierRegistry(str(json_file))
 
     with pytest.raises(IdentifierRegistryError, match="Invalid JSON format"):
-        registry.load(FilterAsset())
+        registry.load(SelectorAsset())
 
 
 def test_load_file_do_not_exist(tmp_path: Path) -> None:
@@ -110,17 +110,18 @@ def test_load_file_do_not_exist(tmp_path: Path) -> None:
 
     # excinfo, alternative to match
     with pytest.raises(IdentifierRegistryFileNotExistingError) as excinfo:
-        registry.load(FilterAsset())
+        registry.load(SelectorAsset())
     # file path is reported in error message
     assert "static_ids.json" in str(excinfo)
 
 
+# tempalte_registry_data not used
 def test_update_registry(caplog, tmp_path: Path, template_registry_data: dict) -> None:
     caplog.set_level(logging.INFO)
 
     data_origin = {
         "apple": {"yfTicker": "AAPL"},
-        "cac40": {"yfTicker": "^FCHI", "isin": "FR0003500008", "assetType": "INDEX"},
+        "cac40": {"yfTicker": "^FCHI", "assetType": "INDEX", "isin": "FR0003500008"},
         "eurusd": {"yfTicker": "EURUSD=X"},
     }
 
@@ -129,7 +130,7 @@ def test_update_registry(caplog, tmp_path: Path, template_registry_data: dict) -
     # initialize registry
     registry = InFileIdentifierRegistry(str(json_file))
 
-    fin_id_origin = registry.load(FilterAsset())
+    fin_id_origin = registry.load(SelectorAsset())
 
     assert len(fin_id_origin) == 3
 

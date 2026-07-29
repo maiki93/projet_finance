@@ -4,9 +4,12 @@ Define interfaces to external dependencies (ports in hexagonal architecture)
 
 from typing import Protocol
 
-from yfinance_tools.domain import FinancialIdentifierEntry, FinancialIdentifiers
-from yfinance_tools.domain.filter_asset import FilterAsset
-from yfinance_tools.domain.financial_identifier_entry import PendingIdentifierEntryUpdate
+from yfinance_tools.domain import (
+    FinancialIdentifierEntry,
+    FinancialIdentifiers,
+    PendingIdentifierEntryUpdate,
+    SelectorAsset,
+)
 
 
 class IdentifierRegistryPort(Protocol):
@@ -14,7 +17,7 @@ class IdentifierRegistryPort(Protocol):
     Provider of static data assets (identified by assets (name, ISIN, tickers))
     """
 
-    def load(self, selector: FilterAsset) -> FinancialIdentifiers:
+    def load(self, selector: SelectorAsset) -> FinancialIdentifiers:
         """
         Create a FinancialIdentifiers instance with the full content of the registry
         """
