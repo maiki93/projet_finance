@@ -1,38 +1,35 @@
 {
-    "quantum": {
-        "yfTicker": "QNT",
-        "assetType": "EQUITY"
-    },
-    "cac40": {
-        "yfTicker": "^FCHI",
-        "assetType": "INDEX",
-        "currency": "EUR",
-        "isin": "FR0003500008"
-    },
-    "eurusd": {
-        "yfTicker": "EURUSD=X",
-        "assetType": "FOREX",
-        "currency": "EUR"
-    },
-    "bitcoin": {
-        "yfTicker": "BTC-USD",
-        "assetType": "DIGITAL_ASSET"
-    },
-    "natixis_horizon_40_44": {
-        "yfTicker": "0P00014IGTF",
-        "assetType": "MUTUAL_FUND",
-        "currency": "EUR",
-        "isin": "FR0011461276"
-    },
-    "apple": {
-        "yfTicker" : "AAPL"
-    },
-    "invalid_type": {
-        "yfTicker" : "WRONG",
-        "assetType": "INVALID"
-    },
-    "invalid_isin": {
-        "yfTicker" : "WRONG",
-        "isin": "012345678912"
-    }
+  "quantum": {
+    "yfTicker": "QNT",
+    "assetType": "EQUITY",
+    "currency": "USD"
+  },
+  "cac40": {
+    "yfTicker": "^FCHI",
+    "assetType": "INDEX",
+    "currency": "EUR",
+    "isin": "FR0003500008"
+  },
+  "eurusd": {
+    "yfTicker": "EURUSD=X",
+    "assetType": "FOREX",
+    "currency": "USD"
+  },
+  "bitcoin": {
+    "yfTicker": "BTC-USD",
+    "assetType": "DIGITAL_ASSET",
+    "currency": "USD"
+  },
+  "natixis_horizon_40_44": {
+    "yfTicker": "0P00014IGTF",
+    "assetType": "MUTUAL_FUND",
+    "currency": "EUR",
+    "isin": "FR0011461276"
+  },
+  "apple": {
+    "yfTicker": "AAPL",
+    "assetType": "EQUITY",
+    "currency": "USD",
+    "isin": "US0378331005"
+  }
 }

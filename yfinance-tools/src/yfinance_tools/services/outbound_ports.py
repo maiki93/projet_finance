@@ -2,7 +2,7 @@
 Define interfaces to external dependencies (ports in hexagonal architecture)
 """
 
-from typing import Protocol
+from typing import Callable, Protocol, Sequence
 
 from yfinance_tools.domain import (
     FinancialIdentifierEntry,
@@ -10,6 +10,9 @@ from yfinance_tools.domain import (
     PendingIdentifierEntryUpdate,
     SelectorAsset,
 )
+
+# alias for callback <=> implementation (adapter) in yf_cli.py
+ConfirmationCallback = Callable[[Sequence[PendingIdentifierEntryUpdate]], list[PendingIdentifierEntryUpdate]]
 
 
 class IdentifierRegistryPort(Protocol):
@@ -37,7 +40,6 @@ class YFinancePort(Protocol):
     Access to yfinance external library
     """
 
-    # name is not good
     def fetch_static_identifiers(self, ids: dict[str, FinancialIdentifierEntry]) -> dict[str, FinancialIdentifierEntry]:
         """
         ISIN, currency,...

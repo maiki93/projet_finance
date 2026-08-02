@@ -5,7 +5,9 @@ Asset Service under Test
 able to simulate errors (raise exception) or return a static dictionary of identifiers
 - YFinancePort: Mock to set return values by test cases
 
-Use case: update of static data, 2 steps
+Use case:
+- update of static data : one public method
+  divided in 2 private methods:  test also those implementations
 """
 
 import logging
@@ -21,14 +23,14 @@ from yfinance_tools.domain import (
     FinancialIdentifierEntry,
     IdentifierEntryDict,
     PendingIdentifierEntryUpdate,
+    SelectorAsset,
 )
-from yfinance_tools.domain.selector_asset import SelectorAsset
 from yfinance_tools.services import AssetService, YFinancePort
 
 from .utils import fid_entry_from_dict
 
 
-def create_initial_and_pending_update_for_get_static_data_update() -> tuple[dict, IdentifierEntryDict]:
+def create_initial_and_pending_update_for_update_static_data() -> tuple[dict, IdentifierEntryDict]:
 
     original_data = {
         "apple": {"yfTicker": "APPL"},
@@ -36,6 +38,7 @@ def create_initial_and_pending_update_for_get_static_data_update() -> tuple[dict
         "cac40": {"yfTicker": "^FCHI", "assetType": "INDEX", "isin": "FR0003500008"},
     }
 
+    # mocked data returned by adapter
     updated_data = {
         # add new data => accepted
         "apple": FinancialIdentifierEntry("APPL", AssetType.EQUITY, currency="USD", isin=ISIN("US0378331005")),
@@ -50,9 +53,74 @@ def create_initial_and_pending_update_for_get_static_data_update() -> tuple[dict
     return (original_data, updated_data)
 
 
-def test_get_pending_update(mocker, asset_service_factory) -> None:
+def test_update_static_data_accept_all_changes(mocker, asset_service_factory, caplog):
+    caplog.set_level(logging.INFO)
 
-    original_data, return_from_yfinance = create_initial_and_pending_update_for_get_static_data_update()
+    original_data, return_from_yfinance = create_initial_and_pending_update_for_update_static_data()
+
+    # initilization of adapters: in-memory registry
+    registry_identifier = FakeIdentifierRegistry(original_data)
+    # mock of YFinancePort
+    mock_yfinance_adapter = mocker.create_autospec(YFinancePort, instance=True)
+    mock_yfinance_adapter.fetch_static_identifiers.return_value = return_from_yfinance
+
+    service = asset_service_factory(registry_identifier, mock_yfinance_adapter)
+
+    # simplest a lambda to mock the callback: accept all changes
+    tmpfile, assets = service.update_static_data(
+        selector=SelectorAsset(), force_all=False, ui_confirm_cb=lambda pendings: list(pendings)
+    )
+
+    #
+    # Check return values
+    #
+    assert len(assets) == 3
+    assert "cac40" not in {asset.name for asset in assets}
+    assert "new" in {asset.name for asset in assets}
+    assert "apple" in {asset.name for asset in assets}
+
+    assert tmpfile == "/tmp_dir/in_memory_static_assets.json"
+
+    #
+    # check registry update (Fake)
+    #
+    in_memory_registry = cast(FakeIdentifierRegistry, service._identifier_registry)
+
+    assert len(in_memory_registry.fake_static_identifiers) == 4
+    assert "new" in in_memory_registry.fake_static_identifiers
+    assert in_memory_registry.fake_static_identifiers["apple"]["assetType"] == "EQUITY"
+
+    #
+    # check FinancialIdentifier update
+    # a bit tricky to retrieve an access to fin_id
+    #
+    fin_id = service.load_financial_identifier_from_registry(SelectorAsset())
+
+    assert fin_id is not None
+    assert len(fin_id) == 4
+    assert fin_id.find("new") is not None
+    assert fin_id.find("apple").asset_type == AssetType.EQUITY
+
+    #
+    # Check logs of asset_service
+    #
+    assert "assets to be updated in registry: apple eurusd new" in caplog.text
+
+    pattern = r"registry updated: .*/in_memory_static_assets\.json"
+    assert re.search(pattern, caplog.text), f"Pattern '{pattern}' not found in log: {caplog.text}"
+
+    pattern = r"backup resource: .*/in_memory_static_assets2\.json"
+    assert re.search(pattern, caplog.text), f"Pattern '{pattern}' not found in log: {caplog.text}"
+
+
+#
+# Following test private methods
+#
+
+
+def test_get_pending_static_update(mocker, asset_service_factory) -> None:
+
+    original_data, return_from_yfinance = create_initial_and_pending_update_for_update_static_data()
 
     # initilization of adapters: in-memory registry and mock of YFinancePort
     registry_identifier = FakeIdentifierRegistry(original_data)
@@ -62,10 +130,10 @@ def test_get_pending_update(mocker, asset_service_factory) -> None:
 
     service = asset_service_factory(registry_identifier, mock_yfinance_adapter)
 
+    fin_id = service.load_financial_identifier_from_registry(SelectorAsset())
+
     # tested method
-    pendings: list[PendingIdentifierEntryUpdate] = service.get_static_data_pending_update(
-        selector=SelectorAsset(), force_all=False
-    )
+    pendings: list[PendingIdentifierEntryUpdate] = service._get_pending_static_update(fin_id, force_all=False)
 
     assert len(pendings) == 3
     assert "cac40" not in {pending.name for pending in pendings}
@@ -78,14 +146,17 @@ def test_get_pending_update(mocker, asset_service_factory) -> None:
 
 
 def test_get_pendings_missing_yfadapter_dependecy(asset_service_factory):
-    original_data, return_from_yfinance = create_initial_and_pending_update_for_get_static_data_update()
 
-    # missing YFPort
+    original_data, return_from_yfinance = create_initial_and_pending_update_for_update_static_data()
+
     registry_identifier = FakeIdentifierRegistry(original_data)
+    # no need of YFinancePort
     service = asset_service_factory(registry_identifier, None)
 
+    fin_id = service.load_financial_identifier_from_registry(SelectorAsset())
+
     with pytest.raises(RuntimeError, match="YFinancePort adapter is not initialized"):
-        service.get_static_data_pending_update(force_all=False, selector=SelectorAsset())
+        service._get_pending_static_update(fin_id, force_all=False)
 
 
 def create_initial_and_pending_update_for_update_registry() -> tuple[dict, list[PendingIdentifierEntryUpdate]]:
@@ -124,65 +195,36 @@ def create_initial_and_pending_update_for_update_registry() -> tuple[dict, list[
     return initial_data, pendings
 
 
-def test_update_registry(asset_service_factory, caplog) -> None:
-    caplog.set_level(logging.INFO)
+def test_update_registry(asset_service_factory) -> None:
 
     original_data, pendings_update = create_initial_and_pending_update_for_update_registry()
 
     registry_identifier = FakeIdentifierRegistry(original_data)
     service: AssetService = asset_service_factory(registry_identifier, None)
 
-    # load done in previous stage of use case
-    service.load_financial_identifier_from_registry(SelectorAsset())
-
     # update fin_id and registry
-    filepath, assets = service.update_registry(pendings_update)
+    updated, backup = service._update_registry(pendings_update)
 
-    assert "in_memory_static_assets.json" in filepath
-
-    #
-    # check FinancialIdentifier update
-    #
-    fin_id = service.fin_id
-
-    assert fin_id is not None
-    assert len(fin_id) == 4
-    assert fin_id.find("new") is not None
-    assert fin_id.find("apple").asset_type == AssetType.EQUITY
+    # hardcoded return values in FakeRegistry
+    assert updated == "/tmp_dir/in_memory_static_assets.json"
+    assert backup == "/tmp_dir/in_memory_static_assets2.json"
 
     #
     # check registry update (Fake)
     #
-    in_memory_registry = cast(FakeIdentifierRegistry, service._identifier_registry)
 
-    assert len(in_memory_registry.fake_static_identifiers) == 4
-    assert "new" in in_memory_registry.fake_static_identifiers
-    assert in_memory_registry.fake_static_identifiers["apple"]["assetType"] == "EQUITY"
-
-    #
-    # check return assets, only updated entries are returned
-    #
-    assert len(assets) == 3
-    assert {"new", "eurusd", "apple"} == {asset.name for asset in assets}
-
-    #
-    # check logs of asset_service
-    #
-    assert "assets to be updated in registry: apple eurusd new" in caplog.text
-
-    pattern = r"registry updated: .*/in_memory_static_assets\.json"
-    assert re.search(pattern, caplog.text), f"Pattern '{pattern}' not found in log: {caplog.text}"
-
-    pattern = r"backup resource: .*/in_memory_static_assets2\.json"
-    assert re.search(pattern, caplog.text), f"Pattern '{pattern}' not found in log: {caplog.text}"
+    assert len(registry_identifier.fake_static_identifiers) == 4
+    assert "new" in registry_identifier.fake_static_identifiers
+    assert registry_identifier.fake_static_identifiers["apple"]["assetType"] == "EQUITY"
 
 
 def test_update_registry_empty_pendings(asset_service_factory) -> None:
+
     registry_identifier = FakeIdentifierRegistry({})
     service: AssetService = asset_service_factory(registry_identifier, None)
 
-    # update fin_id and registry
-    filepath, assets = service.update_registry([])
+    # update registry
+    updated, backup = service._update_registry([])
 
-    assert filepath == ""
-    assert assets == []
+    assert updated == ""
+    assert backup == ""

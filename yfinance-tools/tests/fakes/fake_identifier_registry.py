@@ -64,7 +64,7 @@ class FakeIdentifierRegistry(IdentifierRegistryPort):
             dict_values = self._entry_to_dict(pending_entry.merged)
             self._static_identifiers[pending_entry.name] = dict_values
 
-        return "/tmp_dir/in_memory_static_assets.json", "/tmp_dir/in_memory_static_assets2.json)"
+        return "/tmp_dir/in_memory_static_assets.json", "/tmp_dir/in_memory_static_assets2.json"
 
     def _entry_to_dict(self, entry: FinancialIdentifierEntry) -> dict[str, str | None]:
         """Serialize for Registry file storage"""
